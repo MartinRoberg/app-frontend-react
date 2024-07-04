@@ -1,35 +1,52 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Tabs as DesignsystemetTabs } from '@digdir/designsystemet-react';
 
-import { useRegisterNodeNavigationHandler } from 'src/features/form/layout/NavigateToNode';
 import { Lang } from 'src/features/language/Lang';
 import { useLanguage } from 'src/features/language/useLanguage';
+import { useNavigateToNodeFromSearchParams } from 'src/hooks/useNavigateToNodeFromSearchParams';
 import { GenericComponent } from 'src/layout/GenericComponent';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
+import type { IdAndRef } from 'src/hooks/useNavigateToNodeFromSearchParams';
 import type { PropsFromGenericComponent } from 'src/layout';
+
+export enum TabSearchParams {
+  ActiveTab = 'activeTab',
+}
 
 export const Tabs = ({ node }: PropsFromGenericComponent<'Tabs'>) => {
   const [activeTab, setActiveTab] = useState<string | undefined>(
     node.item.defaultTab ?? node.item.tabsInternal.at(0)?.id,
   );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabs = node.item.tabsInternal.map((tab) => ({
+    ...tab,
+    childNodes: tab.childNodes.map((node) => ({
+      node,
+      ref: React.createRef<HTMLDivElement>(),
+    })),
+  }));
 
-  useRegisterNodeNavigationHandler((targetNode) => {
-    for (const parent of targetNode.parents() ?? []) {
-      if (parent instanceof BaseLayoutNode && parent.isType('Tabs') && parent.item.id === node.item.id) {
-        const targetTabId = parent.item['tabsInternal']?.find((tab) =>
-          tab.childNodes.some((child) => child.item.id === targetNode.item.id),
-        )?.id;
-        if (targetTabId) {
-          setActiveTab(targetTabId);
-          return true;
-        }
-      }
+  useEffect(() => {
+    const activeTabFromSearchParams = searchParams.get(TabSearchParams.ActiveTab);
+    if (activeTabFromSearchParams) {
+      setActiveTab(activeTabFromSearchParams);
     }
-    return false;
-  });
 
-  const tabs = node.item.tabsInternal;
+    return () => {
+      if (activeTabFromSearchParams) {
+        searchParams.delete(TabSearchParams.ActiveTab);
+        setSearchParams(searchParams);
+      }
+    };
+  }, [searchParams, setSearchParams]);
+
+  const mainIdsWithRefs: IdAndRef[] = tabs
+    .map((tab) => tab.childNodes)
+    .flat()
+    .map(({ node, ref }) => ({ id: node.item.id, ref }));
+  useNavigateToNodeFromSearchParams(mainIdsWithRefs);
+
   return (
     <DesignsystemetTabs
       defaultValue={activeTab}
@@ -57,10 +74,11 @@ export const Tabs = ({ node }: PropsFromGenericComponent<'Tabs'>) => {
             backgroundColor: 'white',
           }}
         >
-          {tab.childNodes.map((node, idx) => (
+          {tab.childNodes.map(({ node, ref }) => (
             <GenericComponent
-              key={idx}
+              key={node.item.id}
               node={node}
+              ref={ref}
             />
           ))}
         </DesignsystemetTabs.Content>

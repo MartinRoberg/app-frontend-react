@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import Grid from '@material-ui/core/Grid';
 import deepEqual from 'fast-deep-equal';
@@ -11,15 +11,15 @@ import { ReadyForPrint } from 'src/components/ReadyForPrint';
 import { Loader } from 'src/core/loading/Loader';
 import { useApplicationMetadata } from 'src/features/applicationMetadata/ApplicationMetadataProvider';
 import { useExpandedWidthLayouts } from 'src/features/form/layout/LayoutsContext';
-import { useNavigateToNode, useRegisterNodeNavigationHandler } from 'src/features/form/layout/NavigateToNode';
 import { useUiConfigContext } from 'src/features/form/layout/UiConfigContext';
 import { usePageSettings } from 'src/features/form/layoutSettings/LayoutSettingsContext';
 import { FrontendValidationSource } from 'src/features/validation';
 import { useTaskErrors } from 'src/features/validation/selectors/taskErrors';
-import { SearchParams, useCurrentView, useNavigatePage } from 'src/hooks/useNavigatePage';
+import { useCurrentView, useNavigatePage } from 'src/hooks/useNavigatePage';
+import { useNavigateToNodeFromSearchParams } from 'src/hooks/useNavigateToNodeFromSearchParams';
 import { GenericComponentById } from 'src/layout/GenericComponent';
 import { extractBottomButtons, hasRequiredFields } from 'src/utils/formLayout';
-import { useNodesMemoSelector, useResolvedNode } from 'src/utils/layout/NodesContext';
+import { useNodesMemoSelector } from 'src/utils/layout/NodesContext';
 
 interface FormState {
   hasRequired: boolean;
@@ -30,7 +30,8 @@ interface FormState {
 
 export function Form() {
   const currentPageId = useCurrentView();
-  const { isValidPageId, navigateToPage } = useNavigatePage();
+  const { isValidPageId } = useNavigatePage(); // TODO: Remove usage
+
   const [formState, setFormState] = useState<FormState>({
     hasRequired: false,
     requiredFieldsMissing: false,
@@ -38,30 +39,21 @@ export function Form() {
     errorReportIds: [],
   });
   const { hasRequired, requiredFieldsMissing, mainIds, errorReportIds } = formState;
+  const mainIdsWithRefs = mainIds?.map((id) => ({ id, ref: React.createRef<HTMLDivElement>() })) ?? [];
 
   useRedirectToStoredPage();
   useSetExpandedWidth();
-
-  useRegisterNodeNavigationHandler((targetNode) => {
-    const targetView = targetNode?.top.top.myKey;
-    if (targetView && targetView !== currentPageId) {
-      navigateToPage(targetView, {
-        shouldFocusComponent: true,
-        replace: window.location.href.includes(SearchParams.FocusComponentId),
-      });
-      return true;
-    }
-    return false;
-  });
+  useNavigateToNodeFromSearchParams(mainIdsWithRefs);
+  useProcessErrors(setFormState);
+  const navigateToFirstFormPage = useNavigateToFirstFormPage();
 
   if (!currentPageId || !isValidPageId(currentPageId)) {
-    return <FormFirstPage />;
+    navigateToFirstFormPage();
   }
 
   if (mainIds === undefined) {
     return (
       <>
-        <ErrorProcessing setFormState={setFormState} />
         <Loader
           reason='form-ids'
           renderPresentation={false}
@@ -72,7 +64,6 @@ export function Form() {
 
   return (
     <>
-      <ErrorProcessing setFormState={setFormState} />
       {hasRequired && (
         <MessageBanner
           error={requiredFieldsMissing}
@@ -84,10 +75,11 @@ export function Form() {
         spacing={3}
         alignItems='flex-start'
       >
-        {mainIds.map((id) => (
+        {mainIdsWithRefs?.map(({ id, ref }) => (
           <GenericComponentById
             key={id}
             id={id}
+            ref={ref}
           />
         ))}
         <Grid
@@ -100,7 +92,6 @@ export function Form() {
         </Grid>
       </Grid>
       <ReadyForPrint />
-      <HandleNavigationFocusComponent />
     </>
   );
 }
@@ -113,6 +104,13 @@ export function FormFirstPage() {
       replace
     />
   );
+}
+
+export function useNavigateToFirstFormPage() {
+  const { startUrl, queryKeys } = useNavigatePage();
+  const navigate = useNavigate();
+
+  return () => navigate(startUrl + queryKeys, { replace: true });
 }
 
 /**
@@ -159,16 +157,7 @@ function useSetExpandedWidth() {
   }, [currentPageId, expandedPagesFromLayout, expandedWidthFromSettings, setExpandedWidth]);
 }
 
-const emptyArray = [];
-interface ErrorProcessingProps {
-  setFormState: React.Dispatch<React.SetStateAction<FormState>>;
-}
-
-/**
- * Instead of re-rendering the entire Form component when any of this changes, we just report the
- * state to the parent component.
- */
-function ErrorProcessing({ setFormState }: ErrorProcessingProps) {
+function useProcessErrors(setFormState: React.Dispatch<React.SetStateAction<FormState>>) {
   const currentPageId = useCurrentView();
   const topLevelNodeIds = useNodesMemoSelector(
     (nodes) =>
@@ -214,27 +203,6 @@ function ErrorProcessing({ setFormState }: ErrorProcessingProps) {
       };
     });
   }, [setFormState, hasRequired, requiredFieldsMissing, mainIds, errorReportIds]);
-
-  return null;
 }
 
-function HandleNavigationFocusComponent() {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const componentId = searchParams.get(SearchParams.FocusComponentId);
-  const focusNode = useResolvedNode(componentId);
-  const navigateTo = useNavigateToNode();
-
-  React.useEffect(() => {
-    searchParams.delete(SearchParams.FocusComponentId);
-    setSearchParams(searchParams, { replace: true, preventScrollReset: true });
-  }, [searchParams, setSearchParams]);
-
-  React.useEffect(() => {
-    if (focusNode != null) {
-      navigateTo(focusNode);
-    }
-  }, [navigateTo, focusNode]);
-
-  return null;
-}
+const emptyArray = [];

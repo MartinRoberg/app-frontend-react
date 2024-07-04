@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { PropsWithChildren } from 'react';
 
 import { createContext } from 'src/core/contexts/context';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import { SearchParams, useNavigationParams } from 'src/hooks/useNavigatePage';
+import { TabSearchParams } from 'src/layout/Tabs/Tabs';
+import { BaseLayoutNode, type LayoutNode } from 'src/utils/layout/LayoutNode';
+import { useNodesAsRef } from 'src/utils/layout/NodesContext';
+import { useIsStatelessApp } from 'src/utils/useIsStatelessApp';
 
 type NavigationHandler = (node: LayoutNode) => boolean;
-type FinishNavigationHandler = (
-  node: LayoutNode,
-  shouldFocus: boolean,
-  whenHit: () => void,
-) => Promise<NavigationResult | void>;
+export type FinishNavigationHandler = (node: LayoutNode, whenHit: () => void) => Promise<NavigationResult | void>;
 
 export enum NavigationResult {
   Timeout = 'timeout',
@@ -20,13 +21,6 @@ export enum NavigationResult {
 }
 
 interface NodeNavigationContext {
-  /**
-   * Start navigating to the given node. If the node is not found, or is hidden, the navigation will be cancelled.
-   * If no navigation handler are registered to handle navigating to the node, the navigation will also be cancelled
-   * after a short delay.
-   */
-  navigateTo: (node: LayoutNode, shouldFocus?: boolean) => Promise<NavigationResult>;
-
   /**
    * Registers a function that tries to change some internal state in its own context in order to help navigate
    * to a node. For example by navigating to a page, or opening a repeating group for editing. The callback
@@ -57,70 +51,6 @@ export function NavigateToNodeProvider({ children }: PropsWithChildren) {
   const navigationHandlers = useRef<HandlerRegistry<NavigationHandler>>(new Set());
   const finishHandlers = useRef<HandlerRegistry<FinishNavigationHandler>>(new Set());
 
-  const navigateTo = useCallback(
-    async (node: LayoutNode, shouldFocus = true) =>
-      new Promise<NavigationResult>((resolve) => {
-        if (node.isHidden()) {
-          resolve(NavigationResult.NodeIsHidden);
-          return;
-        }
-
-        (async () => {
-          let finished = false;
-          let lastTick = Date.now();
-
-          const onHandlerAdded = (handler: NavigationHandler) => {
-            if (finished) {
-              return;
-            }
-            if (handler(node)) {
-              lastTick = Date.now();
-            }
-          };
-          const onFinishedHandlerAdded = async (handler: FinishNavigationHandler) => {
-            if (finished) {
-              return;
-            }
-            const result = await handler(node, shouldFocus, () => {
-              // Mark as finished as soon as the component has been hit (i.e. rendered in GenericComponent), even if
-              // we haven't actually focused it yet. The focussing requires a ref to the actual rendered element, and
-              // it may take some time to reach that stage, and it may even fail if something downstream is hidden.
-              // Still, we don't want to keep running handlers after this point.
-              finished = true;
-            });
-            if (result) {
-              finished = true;
-              resolve(result);
-            }
-          };
-
-          request.current = {
-            onHandlerAdded,
-            onFinishedHandlerAdded,
-          };
-
-          for (const handler of navigationHandlers.current.values()) {
-            onHandlerAdded(handler);
-          }
-          for (const handler of finishHandlers.current.values()) {
-            await onFinishedHandlerAdded(handler);
-          }
-
-          const interval = setInterval(() => {
-            if (finished) {
-              clearInterval(interval);
-              return;
-            }
-            if (Date.now() - lastTick > 1000) {
-              finished = true;
-              resolve(NavigationResult.Timeout);
-            }
-          }, 500);
-        })();
-      }),
-    [],
-  );
-
   const registerNavigationHandler = useCallback((handler: NavigationHandler) => {
     navigationHandlers.current.add(handler);
     request.current?.onHandlerAdded?.(handler);
@@ -142,7 +72,6 @@ export function NavigateToNodeProvider({ children }: PropsWithChildren) {
   return (
     <Provider
       value={{
-        navigateTo,
         registerNavigationHandler,
         unregisterNavigationHandler,
         registerFinishNavigation,
@@ -154,8 +83,7 @@ export function NavigateToNodeProvider({ children }: PropsWithChildren) {
   );
 }
 
-export const useNavigateToNode = () => useCtx().navigateTo;
-
+// TODO: remove all usages
 export const useRegisterNodeNavigationHandler = (handler: NavigationHandler) => {
   const { registerNavigationHandler, unregisterNavigationHandler } = useCtx();
 
@@ -165,11 +93,59 @@ export const useRegisterNodeNavigationHandler = (handler: NavigationHandler) => 
   }, [registerNavigationHandler, unregisterNavigationHandler, handler]);
 };
 
-export const useFinishNodeNavigation = (handler: FinishNavigationHandler) => {
-  const { registerFinishNavigation, unregisterFinishNavigation } = useCtx();
+export function useNavigateToNode() {
+  // TODO: Tabs
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { partyId, instanceGuid, taskId, pageKey: currentPageId } = useNavigationParams();
+  const isStatelessApp = useIsStatelessApp();
+  const navigate = useNavigate();
+  const allNodesRef = useNodesAsRef();
 
-  useEffect(() => {
-    registerFinishNavigation(handler);
-    return () => unregisterFinishNavigation(handler);
-  }, [registerFinishNavigation, unregisterFinishNavigation, handler]);
-};
+  function navigateToNode({ componentId, pageKey }: { componentId: string; pageKey: string }) {
+    const componentNode = allNodesRef.current.findById(componentId);
+
+    if (!componentNode || componentNode.isHidden()) {
+      // No point in trying to focus on a hidden component
+      return;
+    }
+
+    searchParams.set(SearchParams.FocusComponentId, componentId);
+    // handle nested components
+    handleTabNavigation(componentNode, searchParams);
+    handleRepeatingGroupNavigation(componentNode, searchParams);
+
+    if (pageKey === currentPageId) {
+      // We're already on the correct page
+
+      setSearchParams(searchParams, { preventScrollReset: true });
+      return; // TODO: need to return here?
+    }
+
+    const navigationUrl = isStatelessApp
+      ? `/${pageKey}?${searchParams.toString()}`
+      : `/instance/${partyId}/${instanceGuid}/${taskId}/${pageKey}?${searchParams.toString()}`;
+    navigate(navigationUrl, { preventScrollReset: true });
+
+    // TODO: focus
+  }
+
+  return navigateToNode;
+}
+
+function handleTabNavigation(targetNode: LayoutNode, searchParams: URLSearchParams) {
+  for (const parent of targetNode.parents() ?? []) {
+    if (parent instanceof BaseLayoutNode && parent.isType('Tabs')) {
+      const targetTabId = parent.item.tabsInternal.find((tab) =>
+        tab.childNodes.some((child) => child.item.id === targetNode.item.id),
+      )?.id;
+
+      if (targetTabId) {
+        searchParams.set(TabSearchParams.ActiveTab, targetTabId);
+      }
+    }
+  }
+}
+
+function handleRepeatingGroupNavigation(targetNode: LayoutNode, searchParams: URLSearchParams) {
+  // TODO: implement
+}

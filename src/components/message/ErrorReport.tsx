@@ -26,7 +26,7 @@ export const ErrorReport = ({ renderIds }: IErrorReportProps) => {
   const allNodesRef = useNodesAsRef();
   const { formErrors, taskErrors } = useTaskErrors();
   const hasErrors = Boolean(formErrors.length) || Boolean(taskErrors.length);
-  const navigateTo = useNavigateToNode();
+  const navigateToNode = useNavigateToNode();
   const getUniqueKeyFromObject = useGetUniqueKeyFromObject();
   if (!hasErrors) {
     return null;
@@ -37,13 +37,8 @@ export const ErrorReport = ({ renderIds }: IErrorReportProps) => {
       return;
     }
     ev.preventDefault();
-    const componentNode = allNodesRef.current.findById(error.componentId);
-    if (!componentNode || componentNode.isHidden()) {
-      // No point in trying to focus on a hidden component
-      return;
-    }
 
-    await navigateTo(componentNode, true);
+    navigateToNode(error);
   };
 
   return (

@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { forwardRef, useMemo } from 'react';
+import type { ForwardedRef } from 'react';
 
 import { Grid } from '@material-ui/core';
 import classNames from 'classnames';
 
 import { ContextNotProvided } from 'src/core/contexts/context';
 import { useLayoutValidationForNode } from 'src/features/devtools/layoutValidation/useLayoutValidation';
-import { NavigationResult, useFinishNodeNavigation } from 'src/features/form/layout/NavigateToNode';
 import { Lang } from 'src/features/language/Lang';
 import { ComponentValidations } from 'src/features/validation/ComponentValidations';
 import { useUnifiedValidationsForNode } from 'src/features/validation/selectors/unifiedValidationsForNode';
@@ -36,20 +36,30 @@ export interface IGenericComponentProps<Type extends CompTypes> {
  * (for example in Form.tsx) where it's important that a component does not re-render when other nodes in the
  * node hierarchy have been re-created.
  */
-export function GenericComponentById({ id }: { id: string }) {
+// eslint-disable-next-line react/display-name
+export const GenericComponentById = forwardRef(({ id }: { id: string }, ref: ForwardedRef<HTMLDivElement>) => {
   const node = useNode(id);
   if (!node) {
     throw new Error(`Node with id ${id} not found`);
   }
 
-  return <GenericComponent node={node} />;
-}
+  return (
+    <GenericComponent
+      node={node}
+      ref={ref}
+    />
+  );
+});
 
-export function GenericComponent<Type extends CompTypes = CompTypes>({
-  node,
-  overrideItemProps,
-  overrideDisplay,
-}: IGenericComponentProps<Type>) {
+export const GenericComponent = forwardRef(GenericComponentInner) as <T extends CompTypes = CompTypes>(
+  props: IGenericComponentProps<T> & { ref?: ForwardedRef<HTMLDivElement> },
+) => ReturnType<typeof GenericComponentInner>;
+
+// eslint-disable-next-line react/display-name
+function GenericComponentInner<Type extends CompTypes = CompTypes>(
+  { node, overrideItemProps, overrideDisplay }: IGenericComponentProps<Type>,
+  ref: ForwardedRef<HTMLDivElement>,
+) {
   const layoutErrors = useLayoutValidationForNode(node);
   if (layoutErrors !== ContextNotProvided && layoutErrors?.length !== undefined && layoutErrors?.length > 0) {
     return (
@@ -65,15 +75,19 @@ export function GenericComponent<Type extends CompTypes = CompTypes>({
       node={node}
       overrideItemProps={overrideItemProps}
       overrideDisplay={overrideDisplay}
+      ref={ref}
     />
   );
 }
 
-function ActualGenericComponent<Type extends CompTypes = CompTypes>({
-  node,
-  overrideItemProps,
-  overrideDisplay,
-}: IGenericComponentProps<Type>) {
+const ActualGenericComponent = forwardRef(ActualGenericComponentInner) as <T extends CompTypes = CompTypes>(
+  props: IGenericComponentProps<T> & { ref?: ForwardedRef<HTMLDivElement> },
+) => ReturnType<typeof ActualGenericComponentInner>;
+
+function ActualGenericComponentInner<Type extends CompTypes = CompTypes>(
+  { node, overrideItemProps, overrideDisplay }: IGenericComponentProps<Type>,
+  ref: ForwardedRef<HTMLDivElement>,
+) {
   let item = node.item;
   const id = item.id;
 
@@ -108,38 +122,6 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
     [item.baseComponentId, item.grid, id, node],
   );
 
-  useFinishNodeNavigation(async (targetNode, shouldFocus, onHit) => {
-    if (targetNode.item.id !== id) {
-      return undefined;
-    }
-    onHit();
-    let retryCount = 0;
-    while (!containerDivRef.current && retryCount < 100) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      retryCount++;
-    }
-    if (!containerDivRef.current) {
-      return NavigationResult.SuccessfulFailedToRender;
-    }
-    requestAnimationFrame(() => containerDivRef.current?.scrollIntoView());
-
-    if (!shouldFocus) {
-      // Hooray, we've arrived at the component, but we don't need to focus it.
-      return NavigationResult.SuccessfulNoFocus;
-    }
-
-    const maybeInput = containerDivRef.current?.querySelector('input,textarea,select,p') as
-      | HTMLSelectElement
-      | HTMLInputElement
-      | HTMLTextAreaElement;
-
-    if (maybeInput) {
-      maybeInput.focus();
-    }
-
-    return NavigationResult.SuccessfulWithFocus;
-  });
-
   if (isHidden(node.item.id) || (node.item.baseComponentId && isHidden(node.item.baseComponentId))) {
     return null;
   }
@@ -158,9 +140,9 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
   const showValidationMessages = layoutComponent.renderDefaultValidations();
 
   if ('renderAsSummary' in node.item && node.item.renderAsSummary) {
-    const RenderSummary = 'renderSummary' in node.def ? node.def.renderSummary.bind(node.def) : null;
-
-    if (!RenderSummary) {
+    if ('renderSummary' in node.def) {
+      node.def.renderSummary.bind(node.def);
+    } else {
       return null;
     }
 
@@ -189,7 +171,7 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
         data-componentbaseid={item.baseComponentId || item.id}
         data-componentid={item.id}
         data-componenttype={item.type}
-        ref={containerDivRef}
+        ref={ref}
         item={true}
         container={true}
         {...gridBreakpoints(item.grid)}

@@ -5,7 +5,7 @@ import { createContext } from 'src/core/contexts/context';
 import { useRegisterNodeNavigationHandler } from 'src/features/form/layout/NavigateToNode';
 import { useRepeatingGroup } from 'src/layout/RepeatingGroup/RepeatingGroupContext';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
-import type { CompRepeatingGroupInternal } from 'src/layout/RepeatingGroup/config.generated';
+import type { CompRepeatingGroupInternal, HRepGroupRow } from 'src/layout/RepeatingGroup/config.generated';
 import type { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 
 interface RepeatingGroupEditRowContext {
@@ -22,25 +22,32 @@ const { Provider, useCtx } = createContext<RepeatingGroupEditRowContext>({
   required: true,
 });
 
+function getLastPageNumber(rows: HRepGroupRow[], editId: string) {
+  const row = rows.find((r) => r.uuid === editId);
+  if (!row?.items) {
+    return 0;
+  }
+
+  let lastPageNumber = 0;
+  row.items.forEach((childNode) => {
+    lastPageNumber = Math.max(lastPageNumber, childNode.item.multiPageIndex ?? 0);
+  });
+
+  return lastPageNumber;
+}
+
 function useRepeatingGroupEditRowState(
   node: BaseLayoutNode<CompRepeatingGroupInternal>,
   editId: string,
 ): RepeatingGroupEditRowContext & { setMultiPageIndex: (index: number) => void } {
   const multiPageEnabled = node.item.edit?.multiPage ?? false;
-  const lastPage = useMemo(() => {
-    const row = node.item.rows.find((r) => r.uuid === editId);
-    let lastPage = 0;
-    for (const childNode of row?.items ?? []) {
-      lastPage = Math.max(lastPage, childNode.item.multiPageIndex ?? 0);
-    }
-    return lastPage;
-  }, [editId, node.item.rows]);
+  const lastPageNumber = useMemo(() => getLastPageNumber(node.item.rows, editId), [node.item.rows, editId]);
 
   const [multiPageIndex, setMultiPageIndex] = useState(0);
 
   const nextMultiPage = useCallback(() => {
-    setMultiPageIndex((prev) => Math.min(prev + 1, lastPage));
-  }, [lastPage]);
+    setMultiPageIndex((prev) => Math.min(prev + 1, lastPageNumber));
+  }, [lastPageNumber]);
 
   const prevMultiPage = useCallback(() => {
     setMultiPageIndex((prev) => Math.max(prev - 1, 0));
@@ -51,7 +58,7 @@ function useRepeatingGroupEditRowState(
     multiPageIndex,
     nextMultiPage,
     prevMultiPage,
-    hasNextMultiPage: multiPageEnabled && multiPageIndex < lastPage,
+    hasNextMultiPage: multiPageEnabled && multiPageIndex < lastPageNumber,
     hasPrevMultiPage: multiPageEnabled && multiPageIndex > 0,
     setMultiPageIndex,
   };

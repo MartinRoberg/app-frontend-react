@@ -6,7 +6,6 @@ import { CustomValidationConfigProvider } from 'src/features/customValidation/Cu
 import { DataModelSchemaProvider } from 'src/features/datamodel/DataModelSchemaProvider';
 import { DynamicsProvider } from 'src/features/form/dynamics/DynamicsContext';
 import { LayoutsProvider } from 'src/features/form/layout/LayoutsContext';
-import { NavigateToNodeProvider } from 'src/features/form/layout/NavigateToNode';
 import { PageNavigationProvider } from 'src/features/form/layout/PageNavigationContext';
 import { LayoutSettingsProvider } from 'src/features/form/layoutSettings/LayoutSettingsContext';
 import { RulesProvider } from 'src/features/form/rules/RulesContext';
@@ -52,23 +51,21 @@ export function FormProvider({ children }: React.PropsWithChildren) {
                         <AllOptionsStoreProvider>
                           <NodesProvider>
                             <AllOptionsProvider>
-                              <NavigateToNodeProvider>
-                                <ValidationProvider>
-                                  <AttachmentsProvider>
-                                    <PaymentInformationProvider>
-                                      <OrderDetailsProvider>
-                                        {hasProcess ? (
-                                          <ProcessNavigationProvider>
-                                            <Provider value={undefined}>{children}</Provider>
-                                          </ProcessNavigationProvider>
-                                        ) : (
+                              <ValidationProvider>
+                                <AttachmentsProvider>
+                                  <PaymentInformationProvider>
+                                    <OrderDetailsProvider>
+                                      {hasProcess ? (
+                                        <ProcessNavigationProvider>
                                           <Provider value={undefined}>{children}</Provider>
-                                        )}
-                                      </OrderDetailsProvider>
-                                    </PaymentInformationProvider>
-                                  </AttachmentsProvider>
-                                </ValidationProvider>
-                              </NavigateToNodeProvider>
+                                        </ProcessNavigationProvider>
+                                      ) : (
+                                        <Provider value={undefined}>{children}</Provider>
+                                      )}
+                                    </OrderDetailsProvider>
+                                  </PaymentInformationProvider>
+                                </AttachmentsProvider>
+                              </ValidationProvider>
                             </AllOptionsProvider>
                           </NodesProvider>
                         </AllOptionsStoreProvider>

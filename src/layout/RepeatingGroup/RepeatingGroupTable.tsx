@@ -16,6 +16,7 @@ import { RepeatingGroupPagination } from 'src/layout/RepeatingGroup/RepeatingGro
 import { RepeatingGroupsEditContainer } from 'src/layout/RepeatingGroup/RepeatingGroupsEditContainer';
 import { RepeatingGroupTableRow } from 'src/layout/RepeatingGroup/RepeatingGroupTableRow';
 import { RepeatingGroupTableTitle } from 'src/layout/RepeatingGroup/RepeatingGroupTableTitle';
+import { getRepeatingGroupRowCells } from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 import { getColumnStylesRepeatingGroups } from 'src/utils/formComponentUtils';
 import type { ITableColumnFormatting } from 'src/layout/common.generated';
 import type { ChildLookupRestriction } from 'src/utils/layout/HierarchyGenerator';
@@ -52,7 +53,7 @@ export function RepeatingGroupTable(): React.JSX.Element | null {
     return nodes;
   };
 
-  const tableNodes = getTableNodes({ onlyInRowIndex: 0 });
+  const cells = getRepeatingGroupRowCells(node, { onlyInRowIndex: 0 });
   const numRows = rowsToDisplay.length;
   const firstRowId = numRows >= 1 ? rowsToDisplay[0].uuid : undefined;
 
@@ -81,7 +82,7 @@ export function RepeatingGroupTable(): React.JSX.Element | null {
 
   const isNested = typeof node.item?.baseComponentId === 'string';
 
-  if (!tableNodes) {
+  if (!cells?.length) {
     return null;
   }
 
@@ -130,14 +131,15 @@ export function RepeatingGroupTable(): React.JSX.Element | null {
         {showTableHeader && !mobileView && (
           <Table.Head id={`group-${id}-table-header`}>
             <Table.Row className={classes.repeatingGroupRow}>
-              {tableNodes?.map((n) => (
+              {cells.map((cell) => (
                 <Table.HeaderCell
-                  key={n.item.id}
+                  key={cell.id}
                   className={classes.tableCellFormatting}
-                  style={getColumnStylesRepeatingGroups(n, columnSettings)}
+                  style={getColumnStylesRepeatingGroups(cell, columnSettings)}
                 >
                   <RepeatingGroupTableTitle
-                    node={n}
+                    groupNode={node}
+                    cell={cell}
                     columnSettings={columnSettings}
                   />
                 </Table.HeaderCell>
@@ -170,7 +172,6 @@ export function RepeatingGroupTable(): React.JSX.Element | null {
                     [classes.editRowOnTopOfStickyHeader]: isEditingRow && stickyHeader,
                   })}
                   uuid={row.uuid}
-                  getTableNodes={getTableNodes}
                   mobileView={mobileView}
                   displayDeleteColumn={displayDeleteColumn}
                   displayEditColumn={displayEditColumn}
@@ -186,9 +187,7 @@ export function RepeatingGroupTable(): React.JSX.Element | null {
                     <Table.Cell
                       style={{ padding: 0, borderTop: 0 }}
                       colSpan={
-                        mobileView
-                          ? 2
-                          : tableNodes.length + 3 + (displayEditColumn ? 1 : 0) + (displayDeleteColumn ? 1 : 0)
+                        mobileView ? 2 : cells.length + 3 + (displayEditColumn ? 1 : 0) + (displayDeleteColumn ? 1 : 0)
                       }
                     >
                       {edit?.mode !== 'onlyTable' && <RepeatingGroupsEditContainer editId={row.uuid} />}

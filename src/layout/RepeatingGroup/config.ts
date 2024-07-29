@@ -305,6 +305,38 @@ export const Config = new CG.component({
   )
   .addProperty(
     new CG.prop(
+      'tableExtraColumns',
+      new CG.obj()
+        .optional()
+        .additionalProperties(
+          new CG.union(
+            new CG.obj(
+              new CG.prop(
+                'columnTitle',
+                new CG.expr(ExprVal.String).setTitle('Column title').setDescription('Title of the column'),
+              ),
+              new CG.prop(
+                'content',
+                new CG.expr(ExprVal.String)
+                  .setTitle('Content')
+                  .setDescription('Content to show in table cell, can be a string or expression.'),
+              ),
+            ),
+            new CG.obj(
+              new CG.prop(
+                'compact',
+                new CG.bool()
+                  .optional({ default: false })
+                  .setTitle('Compact')
+                  .setDescription('If set to true, the description and help text will not be shown.'),
+              ),
+            ),
+          ),
+        ),
+    ),
+  )
+  .addProperty(
+    new CG.prop(
       'hiddenRow',
       new CG.expr(ExprVal.Boolean)
         .optional({ default: false })

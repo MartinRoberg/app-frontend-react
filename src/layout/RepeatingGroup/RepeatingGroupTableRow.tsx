@@ -8,32 +8,30 @@ import cn from 'classnames';
 import { ConditionalWrapper } from 'src/components/ConditionalWrapper';
 import { DeleteWarningPopover } from 'src/components/molecules/DeleteWarningPopover';
 import { useDisplayDataProps } from 'src/features/displayData/useDisplayData';
-import { Lang } from 'src/features/language/Lang';
 import { useLanguage } from 'src/features/language/useLanguage';
 import { useDeepValidationsForNode } from 'src/features/validation/selectors/deepValidationsForNode';
 import { useAlertOnChange } from 'src/hooks/useAlertOnChange';
 import { useIsMobile } from 'src/hooks/useIsMobile';
-import { implementsDisplayData } from 'src/layout';
-import { GenericComponent } from 'src/layout/GenericComponent';
 import classes from 'src/layout/RepeatingGroup/RepeatingGroup.module.css';
 import { useRepeatingGroup } from 'src/layout/RepeatingGroup/RepeatingGroupContext';
-import { useRepeatingGroupsFocusContext } from 'src/layout/RepeatingGroup/RepeatingGroupFocusContext';
-import { getColumnStylesRepeatingGroups } from 'src/utils/formComponentUtils';
+import { RepeatingGroupTableCell } from 'src/layout/RepeatingGroup/RepeatingGroupTableCell';
+import {
+  getCellDisplayData,
+  getRepeatingGroupRowCells,
+  shouldEditInTable,
+} from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 import type { IUseLanguage } from 'src/features/language/useLanguage';
 import type { AlertOnChange } from 'src/hooks/useAlertOnChange';
 import type { ITextResourceBindings } from 'src/layout/layout';
 import type {
-  CompRepeatingGroupExternal,
   CompRepeatingGroupInternal,
   IGroupEditPropertiesInternal,
 } from 'src/layout/RepeatingGroup/config.generated';
-import type { ChildLookupRestriction } from 'src/utils/layout/HierarchyGenerator';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { NodeTableCell } from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 
 export interface IRepeatingGroupTableRowProps {
   className?: string;
   uuid: string;
-  getTableNodes: (restriction: ChildLookupRestriction) => LayoutNode[] | undefined;
   mobileView: boolean;
   displayEditColumn: boolean;
   displayDeleteColumn: boolean;
@@ -73,13 +71,11 @@ function getEditButtonText(
 export function RepeatingGroupTableRow({
   className,
   uuid,
-  getTableNodes,
   mobileView,
   displayEditColumn,
   displayDeleteColumn,
 }: IRepeatingGroupTableRowProps): JSX.Element | null {
   const mobileViewSmall = useIsMobile();
-  const { refSetter } = useRepeatingGroupsFocusContext();
 
   const { node, deleteRow, isEditing, isDeleting, toggleEditing } = useRepeatingGroup();
   const langTools = useLanguage();
@@ -100,20 +96,18 @@ export function RepeatingGroupTableRow({
 
   const alertOnDelete = useAlertOnChange(Boolean(edit?.alertOnDelete), deleteRow);
 
-  const tableNodes = getTableNodes({ onlyInRowUuid: uuid }) || [];
+  const cells = getRepeatingGroupRowCells(node, { onlyInRowUuid: uuid });
   const displayDataProps = useDisplayDataProps();
-  const displayData = tableNodes.map((node) =>
-    implementsDisplayData(node.def) ? node.def.getDisplayData(node as any, displayDataProps) : '',
-  );
+  const displayData = cells.map((cell) => getCellDisplayData(cell, displayDataProps));
   const firstCellData = displayData.find((c) => !!c);
   const isEditingRow = isEditing(uuid);
   const isDeletingRow = isDeleting(uuid);
 
   // If the row has errors we should highlight the row, unless the errors are for components that are shown in the table,
   // then the component getting highlighted is enough
-  const tableEditingNodeIds = tableNodes
-    .filter((n) => shouldEditInTable(edit, n, columnSettings))
-    .map((n) => n.item.id);
+  const tableEditingNodeIds = cells
+    .filter((c) => shouldEditInTable(edit, c, columnSettings))
+    .map((c: NodeTableCell) => c.node.item.id);
   const rowValidations = useDeepValidationsForNode(node, true, uuid);
   const rowHasErrors = rowValidations.some(
     (validation) => validation.severity === 'error' && !tableEditingNodeIds.includes(validation.componentId),
@@ -141,76 +135,37 @@ export function RepeatingGroupTableRow({
       data-row-num={row.index}
     >
       {!mobileView ? (
-        tableNodes.map((n, idx) =>
-          shouldEditInTable(edit, n, columnSettings) ? (
-            <Table.Cell
-              key={n.item.id}
-              className={classes.tableCell}
-            >
-              <div ref={(ref) => refSetter && refSetter(row.index, `component-${n.item.id}`, ref)}>
-                <GenericComponent
-                  node={n}
-                  overrideDisplay={{
-                    renderedInTable: true,
-                    renderLabel: false,
-                    renderLegend: false,
-                  }}
-                  overrideItemProps={{
-                    grid: {},
-                  }}
-                />
-              </div>
-            </Table.Cell>
-          ) : (
-            <Table.Cell
-              key={`${n.item.id}-${row.index}`}
-              className={classes.tableCell}
-            >
-              <span
-                className={classes.contentFormatting}
-                style={getColumnStylesRepeatingGroups(n, columnSettings)}
-              >
-                {isEditingRow ? null : displayData[idx]}
-              </span>
-            </Table.Cell>
-          ),
-        )
+        cells.map((cell, index, { length }) => (
+          <RepeatingGroupTableCell
+            key={`${cell.id}-${row.uuid}`}
+            cell={cell}
+            index={index}
+            length={length}
+            row={row}
+            edit={edit}
+            columnSettings={columnSettings}
+          />
+        ))
       ) : (
         <Table.Cell className={classes.mobileTableCell}>
           <Grid
             container={true}
             spacing={3}
           >
-            {tableNodes.map(
-              (n, i, { length }) =>
-                !isEditingRow &&
-                (shouldEditInTable(edit, n, columnSettings) ? (
-                  <Grid
-                    container={true}
-                    item={true}
-                    key={n.item.id}
-                    ref={(ref) => refSetter && refSetter(row.index, `component-${n.item.id}`, ref)}
-                  >
-                    <GenericComponent
-                      node={n}
-                      overrideItemProps={{
-                        grid: {},
-                      }}
-                    />
-                  </Grid>
-                ) : (
-                  <Grid
-                    container={true}
-                    item={true}
-                    key={n.item.id}
-                  >
-                    <b className={cn(classes.contentFormatting, classes.spaceAfterContent)}>
-                      <Lang id={getTableTitle('textResourceBindings' in n.item ? n.item.textResourceBindings : {})} />:
-                    </b>
-                    <span className={classes.contentFormatting}>{displayData[i]}</span>
-                    {i < length - 1 && <div style={{ height: 8 }} />}
-                  </Grid>
-                )),
+            {cells.map(
+              (cell, index, { length }) =>
+                !isEditingRow && (
+                  <RepeatingGroupTableCell
+                    key={`${cell.id}-${row.uuid}`}
+                    cell={cell}
+                    index={index}
+                    length={length}
+                    row={row}
+                    edit={edit}
+                    columnSettings={columnSettings}
+                    mobileView={true}
+                  />
+                ),
             )}
           </Grid>
         </Table.Cell>
@@ -333,23 +288,6 @@ export function RepeatingGroupTableRow({
       )}
     </Table.Row>
   );
-}
-
-export function shouldEditInTable(
-  groupEdit: IGroupEditPropertiesInternal,
-  tableNode: LayoutNode,
-  columnSettings: CompRepeatingGroupExternal['tableColumns'],
-) {
-  const column = columnSettings && columnSettings[tableNode.item.baseComponentId || tableNode.item.id];
-  if (groupEdit?.mode === 'onlyTable' && column?.editInTable !== false) {
-    return tableNode.def.canRenderInTable();
-  }
-
-  if (column && column.editInTable) {
-    return tableNode.def.canRenderInTable();
-  }
-
-  return false;
 }
 
 const DeleteElement = ({

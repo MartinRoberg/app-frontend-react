@@ -4,33 +4,23 @@ import { Lang } from 'src/features/language/Lang';
 import classes from 'src/layout/RepeatingGroup/RepeatingGroup.module.css';
 import { getColumnStylesRepeatingGroups } from 'src/utils/formComponentUtils';
 import type { ITableColumnFormatting } from 'src/layout/common.generated';
-import type { ITextResourceBindings } from 'src/layout/layout';
+import type { GenericTableCell } from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 interface IProps {
-  node: LayoutNode;
+  groupNode: LayoutNode<'RepeatingGroup'>;
+  cell: GenericTableCell;
   columnSettings: ITableColumnFormatting;
 }
 
-export const RepeatingGroupTableTitle = ({ node, columnSettings }: IProps) => (
+export const RepeatingGroupTableTitle = ({ groupNode, cell, columnSettings }: IProps) => (
   <span
     className={classes.contentFormatting}
-    style={getColumnStylesRepeatingGroups(node, columnSettings)}
+    style={getColumnStylesRepeatingGroups(cell, columnSettings)}
   >
-    <Lang id={getTableTitle('textResourceBindings' in node.item ? node.item.textResourceBindings : {})} />
+    <Lang
+      id={cell.header}
+      node={groupNode}
+    />
   </span>
 );
-
-function getTableTitle(textResourceBindings: ITextResourceBindings) {
-  if (!textResourceBindings) {
-    return '';
-  }
-
-  if ('tableTitle' in textResourceBindings && textResourceBindings.tableTitle) {
-    return textResourceBindings?.tableTitle;
-  }
-  if ('title' in textResourceBindings && textResourceBindings.title) {
-    return textResourceBindings?.title;
-  }
-  return '';
-}

@@ -1,6 +1,7 @@
 import type React from 'react';
 
 import { isAttachmentUploaded } from 'src/features/attachments';
+import { isNodeTableCell } from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 import printStyles from 'src/styles/print.module.css';
 import type { IAttachment } from 'src/features/attachments';
 import type { IUseLanguage } from 'src/features/language/useLanguage';
@@ -12,7 +13,7 @@ import type {
 } from 'src/layout/common.generated';
 import type { CompInternal, CompTypes, IDataModelBindings, ITextResourceBindings } from 'src/layout/layout';
 import type { IDataModelBindingsForList } from 'src/layout/List/config.generated';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { GenericTableCell } from 'src/layout/RepeatingGroup/repeatingGroupUtils';
 
 export type BindingToValues<B extends IDataModelBindings | undefined> = B extends undefined
   ? { [key: string]: undefined }
@@ -160,11 +161,12 @@ export const pageBreakStyles = (pageBreak: IPageBreakInternal | undefined) => {
   };
 };
 
-export function getTextAlignment(node: LayoutNode): 'left' | 'center' | 'right' {
-  if (!node.isType('Input')) {
+function getTextAlignment(tableCell: GenericTableCell): 'left' | 'center' | 'right' {
+  if (!isNodeTableCell(tableCell) || !tableCell.node.isType('Input')) {
     return 'left';
   }
-  const formatting = node.item.formatting;
+
+  const formatting = tableCell.node.item.formatting;
   if (formatting && formatting.align) {
     return formatting.align;
   }
@@ -175,15 +177,15 @@ export function getTextAlignment(node: LayoutNode): 'left' | 'center' | 'right' 
 }
 
 export function getColumnStylesRepeatingGroups(
-  tableItem: LayoutNode,
+  tableCell: GenericTableCell,
   columnSettings: ITableColumnFormatting | undefined,
 ) {
-  const column = columnSettings && columnSettings[tableItem.item.baseComponentId || tableItem.item.id];
+  const column = columnSettings && columnSettings[tableCell.id];
   if (!column) {
     return;
   }
 
-  column.alignText = column.alignText ?? getTextAlignment(tableItem);
+  column.alignText = column.alignText ?? getTextAlignment(tableCell);
 
   return getColumnStyles(column);
 }

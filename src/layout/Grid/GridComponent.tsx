@@ -23,9 +23,9 @@ import {
   useNodesFromGrid,
 } from 'src/layout/Grid/tools';
 import { getColumnStyles } from 'src/utils/formComponentUtils';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { Hidden } from 'src/utils/layout/NodesContext';
+import { isNode } from 'src/utils/layout/typeGuards';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import { useNodeTraversal } from 'src/utils/layout/useNodeTraversal';
 import type { PropsFromGenericComponent } from 'src/layout';
@@ -41,7 +41,7 @@ export function RenderGrid(props: PropsFromGenericComponent<'Grid'>) {
   const shouldHaveFullWidth = node.parent instanceof LayoutPage;
   const columnSettings: ITableColumnFormatting = {};
   const isMobile = useIsMobile();
-  const isNested = node.parent instanceof BaseLayoutNode;
+  const isNested = isNode(node.parent);
 
   if (isMobile) {
     return <MobileGrid {...props} />;

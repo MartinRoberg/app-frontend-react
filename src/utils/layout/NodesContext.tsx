@@ -36,10 +36,10 @@ import {
 } from 'src/utils/layout/generator/GeneratorStages';
 import { LayoutSetGenerator } from 'src/utils/layout/generator/LayoutSetGenerator';
 import { GeneratorValidationProvider } from 'src/utils/layout/generator/validation/GenerationValidationContext';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { RepeatingChildrenStorePlugin } from 'src/utils/layout/plugins/RepeatingChildrenStorePlugin';
-import { TraversalTask, useNodeTraversal, useNodeTraversalLax } from 'src/utils/layout/useNodeTraversal';
+import { isNode } from 'src/utils/layout/typeGuards';
+import { TraversalTask, useNodeTraversal } from 'src/utils/layout/useNodeTraversal';
 import type { AttachmentsStorePluginConfig } from 'src/features/attachments/AttachmentsStorePlugin';
 import type { OptionsStorePluginConfig } from 'src/features/options/OptionsStorePlugin';
 import type { ValidationStorePluginConfig } from 'src/features/validation/ValidationStorePlugin';
@@ -202,7 +202,7 @@ export function createNodesDataStore() {
 
           nodeData[node.id] = targetState;
 
-          if (node.parent instanceof BaseLayoutNode) {
+          if (isNode(node.parent)) {
             const additionalParentState = node.parent.def.addChild(nodeData[node.parent.id] as any, node, claim, row);
             nodeData[node.parent.id] = {
               ...nodeData[node.parent.id],
@@ -221,7 +221,7 @@ export function createNodesDataStore() {
           return {};
         }
 
-        if (node.parent instanceof BaseLayoutNode && nodeData[node.parent.id]) {
+        if (isNode(node.parent) && nodeData[node.parent.id]) {
           const additionalParentState = node.parent.def.removeChild(nodeData[node.parent.id] as any, node, claim, row);
           nodeData[node.parent.id] = {
             ...nodeData[node.parent.id],
@@ -621,7 +621,7 @@ type RetValFromNode<T extends MaybeNode> = T extends LayoutNode
  * Usually, if you're looking for a specific component/node, useResolvedNode() is better.
  */
 export function useNode<T extends string | undefined | LayoutNode>(id: T): RetValFromNode<T> {
-  const node = useNodeTraversal((traverser) => (id instanceof BaseLayoutNode ? id : traverser.findById(id)));
+  const node = useNodeTraversal((traverser) => (isNode(id) ? id : traverser.findById(id)));
   return node as RetValFromNode<T>;
 }
 
@@ -636,19 +636,6 @@ export const useGetPage = (pageId: string) =>
     }
     return state.nodes.findLayout(new TraversalTask(state, state.nodes, undefined, undefined), pageId);
   });
-
-export function useNodeLax<T extends string | undefined | LayoutNode>(
-  idOrRef: T,
-): RetValFromNode<T> | typeof ContextNotProvided {
-  const node = useNodeTraversalLax((traverser) =>
-    traverser === ContextNotProvided
-      ? ContextNotProvided
-      : idOrRef instanceof BaseLayoutNode
-        ? idOrRef
-        : traverser.findById(idOrRef),
-  );
-  return node as RetValFromNode<T> | typeof ContextNotProvided;
-}
 
 export const useNodes = () => WhenReady.useSelector((s) => s.nodes!);
 export const useNodesWhenNotReady = () => Store.useSelector((s) => s.nodes);
@@ -713,9 +700,9 @@ function isHidden(state: NodesContext, node: LayoutNode | LayoutPage | undefined
     return true;
   }
 
-  if (node instanceof BaseLayoutNode) {
+  if (isNode(node)) {
     const parent = node.parent;
-    if (parent instanceof BaseLayoutNode && 'isChildHidden' in parent.def && state.nodeData[parent.id]) {
+    if (isNode(parent) && 'isChildHidden' in parent.def && state.nodeData[parent.id]) {
       const childHidden = parent.def.isChildHidden(state.nodeData[parent.id] as any, node);
       if (childHidden) {
         return true;

@@ -7,8 +7,8 @@ import cn from 'classnames';
 import { Lang } from 'src/features/language/Lang';
 import classes from 'src/layout/RepeatingGroup/Summary/LargeGroupSummaryContainer.module.css';
 import { pageBreakStyles } from 'src/utils/formComponentUtils';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { Hidden } from 'src/utils/layout/NodesContext';
+import { isNode } from 'src/utils/layout/typeGuards';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import { useNodeTraversal } from 'src/utils/layout/useNodeTraversal';
 import type { HeadingLevel } from 'src/layout/common.generated';
@@ -40,7 +40,7 @@ export function LargeGroupSummaryContainer({ groupNode, id, restriction, renderL
   }
   const { title, summaryTitle } = item.textResourceBindings || {};
 
-  const isNested = groupNode.parent instanceof BaseLayoutNode;
+  const isNested = isNode(groupNode.parent);
   const headingLevel = Math.min(Math.max(depth + 1, 2), 6) as HeadingLevel;
   const headingSize = headingSizes[headingLevel];
   const legend = summaryTitle ?? title;

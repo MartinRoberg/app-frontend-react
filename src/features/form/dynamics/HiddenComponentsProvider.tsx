@@ -102,7 +102,7 @@ function runConditionalRenderingRule(
   const functionToRun = rule.selectedFunction;
   const inputKeys = Object.keys(rule.inputParams);
 
-  const inputObj = {} as Record<string, string | number | boolean | null>;
+  const inputObj: Record<string, string | number | boolean | null> = {};
   for (const key of inputKeys) {
     const param = rule.inputParams[key].replace(/{\d+}/g, '');
     const transposed = (node ? transposeSelector(node, param) : undefined) ?? param;

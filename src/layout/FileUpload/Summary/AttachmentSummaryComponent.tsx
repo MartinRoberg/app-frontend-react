@@ -6,6 +6,7 @@ import { useLanguage } from 'src/features/language/useLanguage';
 import { useNodeOptions } from 'src/features/options/useNodeOptions';
 import classes from 'src/layout/FileUpload/Summary/AttachmentSummaryComponent.module.css';
 import { useUploaderSummaryData } from 'src/layout/FileUpload/Summary/summary';
+import { nodeCanHaveOptions } from 'src/utils/layout/typeGuards';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
@@ -19,7 +20,7 @@ export function AttachmentSummaryComponent({ targetNode }: IAttachmentSummaryCom
   const component = useNodeItem(targetNode);
   const hasTag = component.type === 'FileUploadWithTag';
 
-  const { options: allOptions } = useNodeOptions(targetNode as LayoutNode<'FileUploadWithTag'>);
+  const { options: allOptions } = useNodeOptions(nodeCanHaveOptions(targetNode) ? targetNode : undefined);
   const options = hasTag ? allOptions : undefined;
 
   const tryToGetTextResource = (tag: string) => {

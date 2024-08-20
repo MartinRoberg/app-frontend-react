@@ -1,3 +1,4 @@
+import { getExpressionDataSourcesMock } from 'src/__mocks__/getExpressionDataSourcesMock';
 import { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import { evalExpr } from 'src/features/expressions/index';
 import { ExprVal } from 'src/features/expressions/types';
@@ -15,9 +16,7 @@ describe('Expressions', () => {
       evalExpr(
         ['frontendSettings', 'whatever'],
         new NodeNotFoundWithoutContext('test'),
-        {
-          applicationSettings: {},
-        } as ExpressionDataSources,
+        getExpressionDataSourcesMock(),
         { config },
       ),
     ).toEqual('hello world');
@@ -26,13 +25,9 @@ describe('Expressions', () => {
   describe('formatDate', () => {
     it('should be able to format a date when the selected language is norwegian', () => {
       const dataSources = {
-        formDataSelector: () => null,
-        applicationSettings: {},
-        hiddenFields: new Set<string>(),
-        instanceDataSources: {},
-        langToolsRef: { current: {} },
+        ...getExpressionDataSourcesMock(),
         currentLanguage: 'nb',
-      } as unknown as ExpressionDataSources;
+      } satisfies ExpressionDataSources;
       const node = new NodeNotFoundWithoutContext('test');
 
       const result = evalExpr(['formatDate', '2023-10-26T13:12:38.069Z'], node, dataSources);
@@ -41,11 +36,7 @@ describe('Expressions', () => {
 
     it('should be able to format a date when the selected language is english', () => {
       const dataSources = {
-        formDataSelector: () => null,
-        applicationSettings: {},
-        hiddenFields: new Set<string>(),
-        instanceDataSources: {},
-        langToolsRef: { current: {} },
+        ...getExpressionDataSourcesMock(),
         currentLanguage: 'en',
       } as unknown as ExpressionDataSources;
       const node = new NodeNotFoundWithoutContext('test');
@@ -55,13 +46,7 @@ describe('Expressions', () => {
     });
 
     it('should be able to specify a custom format in which the date should be formatted', () => {
-      const dataSources = {
-        formDataSelector: () => null,
-        applicationSettings: {},
-        hiddenFields: new Set<string>(),
-        instanceDataSources: {},
-        langToolsRef: { current: {} },
-      } as unknown as ExpressionDataSources;
+      const dataSources = getExpressionDataSourcesMock();
       const node = new NodeNotFoundWithoutContext('test');
 
       const result = evalExpr(['formatDate', '2023-10-26T13:12:38.069Z', 'dd.MM'], node, dataSources);

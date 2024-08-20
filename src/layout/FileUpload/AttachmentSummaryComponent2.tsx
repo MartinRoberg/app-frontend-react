@@ -7,6 +7,7 @@ import { useIsMobileOrTablet } from 'src/hooks/useIsMobile';
 import { FileTable } from 'src/layout/FileUpload/FileUploadTable/FileTable';
 import classes from 'src/layout/FileUpload/FileUploadTable/FileTableComponent.module.css';
 import { useUploaderSummaryData } from 'src/layout/FileUpload/Summary/summary';
+import { nodeCanHaveOptions } from 'src/utils/layout/typeGuards';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 export interface IAttachmentSummaryComponent {
@@ -16,7 +17,7 @@ export interface IAttachmentSummaryComponent {
 export function AttachmentSummaryComponent2({ targetNode }: IAttachmentSummaryComponent) {
   const attachments = useUploaderSummaryData(targetNode);
   const hasTag = targetNode.isType('FileUploadWithTag');
-  const { options, isFetching } = useNodeOptions(targetNode as LayoutNode<'FileUploadWithTag'>);
+  const { options, isFetching } = useNodeOptions(nodeCanHaveOptions(targetNode) ? targetNode : undefined);
   const mobileView = useIsMobileOrTablet();
   const pdfModeActive = usePdfModeActive();
   const isSmall = mobileView && !pdfModeActive;

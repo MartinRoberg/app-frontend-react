@@ -21,7 +21,7 @@ import { RepeatingGroupTableRow } from 'src/layout/RepeatingGroup/RepeatingGroup
 import { RepeatingGroupTableTitle } from 'src/layout/RepeatingGroup/RepeatingGroupTableTitle';
 import { useTableNodes } from 'src/layout/RepeatingGroup/useTableNodes';
 import { useColumnStylesRepeatingGroups } from 'src/utils/formComponentUtils';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
+import { isNode } from 'src/utils/layout/typeGuards';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { ITableColumnFormatting } from 'src/layout/common.generated';
 import type { GridCellInternal } from 'src/layout/Grid/types';
@@ -197,7 +197,7 @@ function ExtraRows({ where, extraCells, columnSettings }: ExtraRowsProps) {
   const { visibleRows } = useRepeatingGroupRowState();
   const isEmpty = visibleRows.length === 0;
   const item = useNodeItem(node);
-  const isNested = node.parent instanceof BaseLayoutNode;
+  const isNested = isNode(node.parent);
 
   const rows = where === 'Before' ? item.rowsBeforeInternal : item.rowsAfterInternal;
   const mobileNodes = useNodesFromGridRows(rows, mobileView);

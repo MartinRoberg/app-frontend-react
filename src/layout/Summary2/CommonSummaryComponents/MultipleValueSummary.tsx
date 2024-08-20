@@ -11,9 +11,9 @@ import { useUnifiedValidationsForNode } from 'src/features/validation/selectors/
 import { validationsOfSeverity } from 'src/features/validation/utils';
 import { EditButton } from 'src/layout/Summary2/CommonSummaryComponents/EditButton';
 import classes from 'src/layout/Summary2/CommonSummaryComponents/MultipleValueSummary.module.css';
+import { nodeCanHaveOptions } from 'src/utils/layout/typeGuards';
 import { useNodeFormDataSelector } from 'src/utils/layout/useNodeItem';
 import type { IOptionInternal } from 'src/features/options/castOptionsToStrings';
-import type { CompWithBehavior } from 'src/layout/layout';
 import type { IComponentFormData } from 'src/utils/formComponentUtils';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 import type { NodeFormDataSelector } from 'src/utils/layout/useNodeItem';
@@ -54,7 +54,7 @@ export const MultipleValueSummary = ({ title, componentNode, showAsList, isCompa
   const nodeFormDataSelector = useNodeFormDataSelector();
 
   const langTools = useLanguage();
-  const options = useNodeOptions(componentNode as LayoutNode<CompWithBehavior<'canHaveOptions'>>).options;
+  const options = useNodeOptions(nodeCanHaveOptions(componentNode) ? componentNode : undefined).options;
   const summaryData = getSummaryData(componentNode, langTools, options, nodeFormDataSelector);
   const displayValues = Object.values(summaryData);
 

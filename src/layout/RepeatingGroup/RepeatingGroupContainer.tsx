@@ -23,8 +23,8 @@ import { useRepeatingGroupsFocusContext } from 'src/layout/RepeatingGroup/Repeat
 import { RepeatingGroupPagination } from 'src/layout/RepeatingGroup/RepeatingGroupPagination';
 import { RepeatingGroupsEditContainer } from 'src/layout/RepeatingGroup/RepeatingGroupsEditContainer';
 import { RepeatingGroupTable } from 'src/layout/RepeatingGroup/RepeatingGroupTable';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { Hidden } from 'src/utils/layout/NodesContext';
+import { isNode } from 'src/utils/layout/typeGuards';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 
 export const RepeatingGroupContainer = forwardRef((_, ref: React.ForwardedRef<HTMLDivElement>): JSX.Element | null => {
@@ -47,7 +47,7 @@ export const RepeatingGroupContainer = forwardRef((_, ref: React.ForwardedRef<HT
     return null;
   }
 
-  const isNested = node.parent instanceof BaseLayoutNode;
+  const isNested = isNode(node.parent);
 
   return (
     <Grid

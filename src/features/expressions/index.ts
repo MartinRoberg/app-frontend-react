@@ -14,8 +14,8 @@ import { SearchParams } from 'src/hooks/useNavigatePage';
 import { implementsDisplayData } from 'src/layout';
 import { isDate } from 'src/utils/dateHelpers';
 import { formatDateLocale } from 'src/utils/formatDateLocale';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
+import { isNode } from 'src/utils/layout/typeGuards';
 import type { DisplayData } from 'src/features/displayData';
 import type { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import type { ExpressionDataSources } from 'src/features/expressions/ExprContext';
@@ -448,8 +448,8 @@ export const ExprFunctions = {
       }
 
       const maybeNode = this.failWithoutNode();
-      if (maybeNode instanceof BaseLayoutNode) {
-        const newPath = this.dataSources.transposeSelector(maybeNode as LayoutNode, path);
+      if (isNode(maybeNode)) {
+        const newPath = this.dataSources.transposeSelector(maybeNode, path);
         return pickSimpleValue(newPath, this.dataSources.formDataSelector);
       }
 
@@ -532,7 +532,7 @@ export const ExprFunctions = {
         return null;
       }
 
-      const node = this.node instanceof BaseLayoutNode ? this.node : undefined;
+      const node = isNode(this.node) ? this.node : undefined;
       return this.dataSources.langToolsSelector(node).langAsNonProcessedString(key);
     },
     args: [ExprVal.String] as const,

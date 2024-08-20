@@ -84,8 +84,8 @@ function resolveText(
   if (text && ExprValidation.isValid(text)) {
     return evalExpr(text, node, dataSources);
   }
-  if (text) {
-    return dataSources.langToolsSelector(node).langAsStringUsingPathInDataModel(text as string, path);
+  if (text && typeof text === 'string') {
+    return dataSources.langToolsSelector(node).langAsStringUsingPathInDataModel(text, path);
   }
   return undefined;
 }

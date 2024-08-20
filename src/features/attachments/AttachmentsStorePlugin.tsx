@@ -76,7 +76,7 @@ export interface AttachmentsStorePluginConfig {
     useAttachmentsUpdate: () => (action: AttachmentActionUpdate) => Promise<void>;
     useAttachmentsRemove: () => (action: AttachmentActionRemove) => Promise<boolean>;
 
-    useAttachments: (node: FileUploaderNode) => IAttachment[];
+    useAttachments: (node: LayoutNode) => IAttachment[];
     useAttachmentsSelector: () => AttachmentsSelector;
     useLaxAttachmentsSelector: () => typeof ContextNotProvided | AttachmentsSelector;
     useWaitUntilUploaded: () => (node: FileUploaderNode, attachment: TemporaryAttachment) => Promise<IData | false>;
@@ -85,7 +85,17 @@ export interface AttachmentsStorePluginConfig {
 
 const emptyArray: IAttachment[] = [];
 
-type ProperData = NodeData<CompWithBehavior<'canHaveAttachments'>>;
+function canHaveAttachments(nodeData: NodeData): nodeData is NodeData<CompWithBehavior<'canHaveAttachments'>> {
+  return 'attachments' in nodeData;
+}
+
+function assertCanHaveAttachments(
+  nodeData: NodeData,
+): asserts nodeData is NodeData<CompWithBehavior<'canHaveAttachments'>> {
+  if (!canHaveAttachments(nodeData)) {
+    throw new Error('Node cannot have attachments');
+  }
+}
 
 export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePluginConfig> {
   extraFunctions(set: NodeDataPluginSetState): AttachmentsStorePluginConfig['extraFunctions'] {
@@ -93,7 +103,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUpload: ({ file, node, temporaryId }) => {
         set(
           nodesProduce((draft) => {
-            const data = draft.nodeData[node.id] as ProperData;
+            const data = draft.nodeData[node.id];
+            assertCanHaveAttachments(data);
             data.attachments[temporaryId] = {
               uploaded: false,
               updating: false,
@@ -110,7 +121,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUploadFulfilled: ({ temporaryId, node }, data) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             delete nodeData.attachments[temporaryId];
             nodeData.attachments[data.id] = {
               temporaryId,
@@ -125,7 +137,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUploadRejected: ({ node, temporaryId }, error) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             delete nodeData.attachments[temporaryId];
             nodeData.attachmentsFailedToUpload[temporaryId] = error;
           }),
@@ -134,7 +147,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUpdate: ({ node, attachment, tags }) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             const attachmentData = nodeData.attachments[attachment.data.id];
             if (isAttachmentUploaded(attachmentData)) {
               attachmentData.updating = true;
@@ -148,7 +162,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUpdateFulfilled: ({ node, attachment }) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             const attachmentData = nodeData.attachments[attachment.data.id];
             if (isAttachmentUploaded(attachmentData)) {
               attachmentData.updating = false;
@@ -161,7 +176,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentUpdateRejected: ({ node, attachment }, error) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             const attachmentData = nodeData.attachments[attachment.data.id];
             if (isAttachmentUploaded(attachmentData)) {
               attachmentData.updating = false;
@@ -175,7 +191,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentRemove: ({ node, attachment }) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             const attachmentData = nodeData.attachments[attachment.data.id];
             if (isAttachmentUploaded(attachmentData)) {
               attachmentData.deleting = true;
@@ -188,7 +205,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentRemoveFulfilled: ({ node, attachment }) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             delete nodeData.attachments[attachment.data.id];
           }),
         );
@@ -196,7 +214,8 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
       attachmentRemoveRejected: ({ node, attachment }, error) => {
         set(
           nodesProduce((draft) => {
-            const nodeData = draft.nodeData[node.id] as ProperData;
+            const nodeData = draft.nodeData[node.id];
+            assertCanHaveAttachments(nodeData);
             const attachmentData = nodeData.attachments[attachment.data.id];
             if (isAttachmentUploaded(attachmentData)) {
               attachmentData.deleting = false;
@@ -210,7 +229,7 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
     };
   }
   extraHooks(store: NodesStoreFull): AttachmentsStorePluginConfig['extraHooks'] {
-    const selectorArg: DSMode<NodesContext> = {
+    const selectorArg = {
       mode: 'simple',
       selector: (node: LayoutNode) => (state) => {
         const nodeData = state.nodeData[node.id];
@@ -222,7 +241,7 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
         }
         return emptyArray;
       },
-    };
+    } satisfies DSMode<NodesContext>;
 
     return {
       useAttachmentsUpload() {
@@ -429,10 +448,10 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
         });
       },
       useAttachmentsSelector() {
-        return store.useDelayedSelector(selectorArg) as AttachmentsSelector;
+        return store.useDelayedSelector(selectorArg) satisfies AttachmentsSelector;
       },
       useLaxAttachmentsSelector() {
-        return store.useLaxDelayedSelector(selectorArg) as AttachmentsSelector;
+        return store.useLaxDelayedSelector(selectorArg) satisfies AttachmentsSelector;
       },
       useWaitUntilUploaded() {
         const zustandStore = store.useStore();
@@ -456,9 +475,9 @@ export class AttachmentsStorePlugin extends NodeDataPlugin<AttachmentsStorePlugi
                 return true;
               }
 
-              const uploaded = Object.values(nodeData.attachments).find(
-                (a) => isAttachmentUploaded(a) && a.temporaryId === attachment.data.temporaryId,
-              ) as UploadedAttachment | undefined;
+              const uploaded = Object.values(nodeData.attachments)
+                .filter((a) => isAttachmentUploaded(a))
+                .find((a) => a.temporaryId === attachment.data.temporaryId);
               if (uploaded) {
                 setReturnValue(uploaded.data);
                 return true;

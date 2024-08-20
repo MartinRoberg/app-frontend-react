@@ -1,12 +1,12 @@
 import { useCallback, useRef } from 'react';
 
 import { ContextNotProvided } from 'src/core/contexts/context';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { LayoutPages } from 'src/utils/layout/LayoutPages';
 import { NodesInternal, useNodesLax } from 'src/utils/layout/NodesContext';
+import { isNode, isPage, isPages } from 'src/utils/layout/typeGuards';
 import type { CompTypes, ParentNode } from 'src/layout/layout';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { BaseLayoutNode, LayoutNode } from 'src/utils/layout/LayoutNode';
 import type { NodesContext, PageData, PagesData } from 'src/utils/layout/NodesContext';
 import type { NodeData } from 'src/utils/layout/types';
 
@@ -53,7 +53,7 @@ export class TraversalTask {
    * Filter a node based on the restriction
    */
   public passesRestriction(node: Node): boolean {
-    if (this.restriction !== undefined && node instanceof BaseLayoutNode) {
+    if (this.restriction !== undefined && isNode(node)) {
       return node.rowIndex === this.restriction;
     }
 
@@ -108,7 +108,7 @@ export class NodeTraversal<T extends Node = LayoutPages> {
     ofType?: T,
   ): this is NodeTraversalFromNode<T extends CompTypes ? LayoutNode<T> : LayoutNode> {
     const target = this.target as any;
-    return target instanceof BaseLayoutNode && (!ofType || target.isType(ofType));
+    return isNode(target) && (!ofType || target.isType(ofType));
   }
 
   /**
@@ -183,31 +183,34 @@ export class NodeTraversal<T extends Node = LayoutPages> {
    * Find all nodes with a specific ID
    */
   findAllById(id: string | undefined): LayoutNode[] {
-    if ((this.target as any) instanceof BaseLayoutNode) {
+    if (isNode(this.target)) {
       throw new Error('Cannot call findAllById() on a LayoutNode object');
     }
 
     if (!id) {
       return emptyArray;
     }
-    return (this.target as LayoutPage | LayoutPages).findAllById(
-      new TraversalTask(this.state, this.rootNode, undefined, undefined),
-      id,
-    );
+
+    if (!isPage(this.target) || !isPages(this.target)) {
+      throw new Error('This should not be possible');
+    }
+
+    return this.target.findAllById(new TraversalTask(this.state, this.rootNode, undefined, undefined), id);
   }
 
   /**
    * Find a node (never a page) by the given ID
    */
   findById(id: string | undefined): LayoutNode | undefined {
-    if ((this.target as any) instanceof BaseLayoutNode) {
+    if (this.targetIsNode()) {
       throw new Error('Cannot call findById() on a LayoutNode object');
     }
 
-    return (this.target as LayoutPage | LayoutPages).findById(
-      new TraversalTask(this.state, this.rootNode, undefined, undefined),
-      id,
-    );
+    if (!isPage(this.target) || !isPages(this.target)) {
+      throw new Error('This should not be possible');
+    }
+
+    return this.target.findById(new TraversalTask(this.state, this.rootNode, undefined, undefined), id);
   }
 }
 

@@ -152,6 +152,10 @@ export type CompWithCap<Capability extends keyof CompCapabilities> = {
   [Type in CompTypes]: ComponentConfigs[Type]['capabilities'][Capability] extends true ? Type : never;
 }[CompTypes];
 
+/**
+ * @see nodeCanHaveAttachments
+ * @see nodeCanHaveOptions
+ */
 export type CompWithBehavior<Behavior extends keyof CompBehaviors> = {
   [Type in CompTypes]: ComponentConfigs[Type]['behaviors'][Behavior] extends true ? Type : never;
 }[CompTypes];

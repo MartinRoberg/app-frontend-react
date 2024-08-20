@@ -1,10 +1,10 @@
 import React, { Component, useEffect } from 'react';
 import type { MutableRefObject, PropsWithChildren } from 'react';
 
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
-import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
+import { isNode, isPage } from 'src/utils/layout/typeGuards';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { LayoutPage } from 'src/utils/layout/LayoutPage';
 
 interface IErrorBoundary {
   lastError?: Error;
@@ -66,12 +66,4 @@ function StoreErrorAndBail({ error, node }: { error: Error; node: LayoutPage | L
   }, [addError, error, node]);
 
   return null;
-}
-
-function isPage(node: LayoutPage | LayoutNode | undefined): node is LayoutPage {
-  return node !== undefined && node instanceof LayoutPage;
-}
-
-function isNode(node: LayoutPage | LayoutNode | undefined): node is LayoutNode {
-  return node !== undefined && node instanceof BaseLayoutNode;
 }

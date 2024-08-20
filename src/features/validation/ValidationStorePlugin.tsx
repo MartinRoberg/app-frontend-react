@@ -8,9 +8,13 @@ import type {
   ValidationMask,
   ValidationSeverity,
 } from 'src/features/validation/index';
+import type { DSMode } from 'src/hooks/delayedSelectors';
+import type { CompCategory } from 'src/layout/common';
+import type { TypesFromCategory } from 'src/layout/layout';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
-import type { IsHiddenOptions, NodesStoreFull } from 'src/utils/layout/NodesContext';
+import type { IsHiddenOptions, NodesContext, NodesStoreFull } from 'src/utils/layout/NodesContext';
 import type { NodeDataPluginSetState } from 'src/utils/layout/plugins/NodeDataPlugin';
+import type { NodeData } from 'src/utils/layout/types';
 
 export type ValidationsSelector = (
   node: LayoutNode,
@@ -41,6 +45,18 @@ export interface ValidationStorePluginConfig {
 const emptyArray: never[] = [];
 const hiddenOptions: IsHiddenOptions = { respectTracks: true };
 
+function canHaveValidations(nodeData: NodeData): nodeData is NodeData<TypesFromCategory<CompCategory.Form>> {
+  return 'validations' in nodeData;
+}
+
+function assertCanHaveValidations(
+  nodeData: NodeData,
+): asserts nodeData is NodeData<TypesFromCategory<CompCategory.Form>> {
+  if (!canHaveValidations(nodeData)) {
+    throw new Error('Node does not support validations');
+  }
+}
+
 export class ValidationStorePlugin extends NodeDataPlugin<ValidationStorePluginConfig> {
   extraFunctions(set: NodeDataPluginSetState) {
     const out: ValidationStorePluginConfig['extraFunctions'] = {
@@ -49,7 +65,8 @@ export class ValidationStorePlugin extends NodeDataPlugin<ValidationStorePluginC
           nodesProduce((state) => {
             for (const node of nodes) {
               const nodeData = state.nodeData[node.id];
-              (nodeData as any).validationVisibility = newVisibility;
+              assertCanHaveValidations(nodeData);
+              nodeData.validationVisibility = newVisibility;
             }
           }),
         );
@@ -58,12 +75,11 @@ export class ValidationStorePlugin extends NodeDataPlugin<ValidationStorePluginC
         set(
           nodesProduce((state) => {
             const nodeData = state.nodeData[node.id];
-            if ('validations' in nodeData) {
-              for (const validation of nodeData.validations) {
-                if ('attachmentId' in validation && validation.attachmentId === attachmentId) {
-                  const v = validation as AttachmentValidation;
-                  v.visibility = newVisibility;
-                }
+            assertCanHaveValidations(nodeData);
+            for (const validation of nodeData.validations) {
+              if ('attachmentId' in validation && validation.attachmentId === attachmentId) {
+                const v = validation as AttachmentValidation;
+                v.visibility = newVisibility;
               }
             }
           }),
@@ -75,26 +91,30 @@ export class ValidationStorePlugin extends NodeDataPlugin<ValidationStorePluginC
   }
 
   extraHooks(store: NodesStoreFull) {
-    const selectorArgs = (
-      hiddenSelector: ReturnType<(typeof Hidden)['useIsHiddenSelector']>,
-    ): Parameters<(typeof store)['useDelayedSelector']> => [
-      {
-        mode: 'simple',
-        selector:
-          (node: LayoutNode, mask: ValidationMask | 'visible', severity?: ValidationSeverity, includeHidden = false) =>
-          (state) => {
-            const nodeData = state.nodeData[node.id];
-            if (!nodeData || (!includeHidden && hiddenSelector(node, hiddenOptions))) {
-              return emptyArray;
-            }
-            const visibility = 'validationVisibility' in nodeData ? nodeData.validationVisibility : 0;
-            return 'validations' in nodeData
-              ? selectValidations(nodeData.validations, mask === 'visible' ? visibility : mask, severity)
-              : emptyArray;
-          },
-      },
-      [hiddenSelector],
-    ];
+    const selectorArgs = (hiddenSelector: ReturnType<(typeof Hidden)['useIsHiddenSelector']>) =>
+      [
+        {
+          mode: 'simple',
+          selector:
+            (
+              node: LayoutNode,
+              mask: ValidationMask | 'visible',
+              severity?: ValidationSeverity,
+              includeHidden = false,
+            ) =>
+            (state) => {
+              const nodeData = state.nodeData[node.id];
+              if (!nodeData || (!includeHidden && hiddenSelector(node, hiddenOptions))) {
+                return emptyArray;
+              }
+              const visibility = 'validationVisibility' in nodeData ? nodeData.validationVisibility : 0;
+              return 'validations' in nodeData
+                ? selectValidations(nodeData.validations, mask === 'visible' ? visibility : mask, severity)
+                : emptyArray;
+            },
+        },
+        [hiddenSelector],
+      ] satisfies [DSMode<NodesContext>, unknown[]];
 
     const out: ValidationStorePluginConfig['extraHooks'] = {
       useSetNodeVisibility: () => store.useSelector((state) => state.setNodeVisibility),
@@ -141,11 +161,11 @@ export class ValidationStorePlugin extends NodeDataPlugin<ValidationStorePluginC
       },
       useValidationsSelector: () => {
         const hiddenSelector = Hidden.useIsHiddenSelector();
-        return store.useDelayedSelector(...selectorArgs(hiddenSelector)) as unknown as ValidationsSelector;
+        return store.useDelayedSelector(...selectorArgs(hiddenSelector)) satisfies ValidationsSelector;
       },
       useLaxValidationsSelector: () => {
         const hiddenSelector = Hidden.useLaxIsHiddenSelector();
-        return store.useLaxDelayedSelector(...selectorArgs(hiddenSelector)) as unknown as ValidationsSelector;
+        return store.useLaxDelayedSelector(...selectorArgs(hiddenSelector)) satisfies ValidationsSelector;
       },
     };
 

@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 
 import { ContextNotProvided } from 'src/core/contexts/context';
 import { transposeDataBinding } from 'src/utils/databindings/DataBinding';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
+import { isNode } from 'src/utils/layout/typeGuards';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 import type { LaxNodeDataSelector } from 'src/utils/layout/NodesContext';
 
@@ -67,7 +67,7 @@ function firstDataModelBinding(
   }
 
   const parent = node.parent;
-  if (!parent || !(parent instanceof BaseLayoutNode)) {
+  if (!isNode(parent)) {
     return {
       currentLocation: undefined,
       currentLocationIsRepGroup: false,

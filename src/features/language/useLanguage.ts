@@ -16,10 +16,6 @@ import { transposeDataBinding } from 'src/utils/databindings/DataBinding';
 import { smartLowerCaseFirst } from 'src/utils/formComponentUtils';
 import { useDataModelBindingTranspose } from 'src/utils/layout/useDataModelBindingTranspose';
 import type { useDataModelReaders } from 'src/features/formData/FormDataReaders';
-import type {
-  LangDataSources,
-  LimitedTextResourceVariablesDataSources,
-} from 'src/features/language/LangDataSourcesProvider';
 import type { TextResourceMap } from 'src/features/language/textResources';
 import type { FixedLanguageList, NestedTexts } from 'src/language/languages';
 import type { FormDataSelector } from 'src/layout';
@@ -107,13 +103,13 @@ export function useLanguageWithForcedNode(node: LayoutNode | undefined) {
   const transposeSelector = useDataModelBindingTranspose();
 
   return useMemo(() => {
-    const { textResources, language, selectedLanguage, ...dataSources } = sources || {};
-    if (!textResources || !language || !selectedLanguage) {
+    if (!sources?.textResources || !sources?.language || !sources?.selectedLanguage) {
       throw new Error('useLanguage must be used inside a LangToolsStoreProvider');
     }
 
+    const { textResources, language, selectedLanguage, ...dataSources } = sources;
     return staticUseLanguage(textResources, language, selectedLanguage, {
-      ...(dataSources as LimitedTextResourceVariablesDataSources),
+      ...dataSources,
       node,
       currentDataModel,
       currentDataModelName,
@@ -132,11 +128,11 @@ export function useLanguageWithForcedNodeSelector() {
 
   return useCallback(
     (node: LayoutNode | undefined) => {
-      const { textResources, language, selectedLanguage, ...dataSources } = sources || ({} as LangDataSources);
-      if (!textResources || !language || !selectedLanguage) {
+      if (!sources?.textResources || !sources?.language || !sources?.selectedLanguage) {
         throw new Error('useLanguage must be used inside a LangToolsStoreProvider');
       }
 
+      const { textResources, language, selectedLanguage, ...dataSources } = sources;
       return staticUseLanguage(textResources, language, selectedLanguage, {
         ...dataSources,
         node,

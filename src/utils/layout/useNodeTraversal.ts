@@ -191,7 +191,7 @@ export class NodeTraversal<T extends Node = LayoutPages> {
       return emptyArray;
     }
 
-    if (!isPage(this.target) || !isPages(this.target)) {
+    if (!isPage(this.target) && !isPages(this.target)) {
       throw new Error('This should not be possible');
     }
 
@@ -206,7 +206,7 @@ export class NodeTraversal<T extends Node = LayoutPages> {
       throw new Error('Cannot call findById() on a LayoutNode object');
     }
 
-    if (!isPage(this.target) || !isPages(this.target)) {
+    if (!isPage(this.target) && !isPages(this.target)) {
       throw new Error('This should not be possible');
     }
 

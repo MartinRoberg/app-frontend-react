@@ -26,7 +26,7 @@ export function AttachmentSummaryComponent2({ targetNode }: IAttachmentSummaryCo
     <>
       <Label
         node={targetNode}
-        id={`attachment-summary2-${targetNode.id}`}
+        overrideId={`attachment-summary2-${targetNode.id}`}
         renderLabelAs='span'
         className={classes.summaryLabelMargin}
         weight={'regular'}

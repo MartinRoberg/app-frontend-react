@@ -36,10 +36,11 @@ import {
 } from 'src/utils/layout/generator/GeneratorStages';
 import { LayoutSetGenerator } from 'src/utils/layout/generator/LayoutSetGenerator';
 import { GeneratorValidationProvider } from 'src/utils/layout/generator/validation/GenerationValidationContext';
+import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { RepeatingChildrenStorePlugin } from 'src/utils/layout/plugins/RepeatingChildrenStorePlugin';
 import { isNode } from 'src/utils/layout/typeGuards';
-import { TraversalTask, useNodeTraversal } from 'src/utils/layout/useNodeTraversal';
+import { TraversalTask } from 'src/utils/layout/useNodeTraversal';
 import type { AttachmentsStorePluginConfig } from 'src/features/attachments/AttachmentsStorePlugin';
 import type { OptionsStorePluginConfig } from 'src/features/options/OptionsStorePlugin';
 import type { ValidationStorePluginConfig } from 'src/features/validation/ValidationStorePlugin';
@@ -142,7 +143,7 @@ export type NodesContext = {
   markHiddenViaRule: (hiddenFields: { [nodeId: string]: true }) => void;
 
   addPage: (pageKey: string) => void;
-  setPageProps: (requests: SetPagePropRequest<any>[]) => void;
+  setPageProps: <K extends keyof PageData>(requests: SetPagePropRequest<K>[]) => void;
   markReady: (readiness?: NodesReadiness) => void;
 
   reset: () => void;
@@ -203,9 +204,11 @@ export function createNodesDataStore() {
           nodeData[node.id] = targetState;
 
           if (isNode(node.parent)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const additionalParentState = node.parent.def.addChild(nodeData[node.parent.id] as any, node, claim, row);
             nodeData[node.parent.id] = {
               ...nodeData[node.parent.id],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ...(additionalParentState as any),
             };
           }
@@ -222,9 +225,11 @@ export function createNodesDataStore() {
         }
 
         if (isNode(node.parent) && nodeData[node.parent.id]) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const additionalParentState = node.parent.def.removeChild(nodeData[node.parent.id] as any, node, claim, row);
           nodeData[node.parent.id] = {
             ...nodeData[node.parent.id],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...(additionalParentState as any),
           };
         }
@@ -243,10 +248,13 @@ export function createNodesDataStore() {
           }
 
           const thisNode = { ...nodeData[node.id] };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const prev = thisNode[prop as any];
           if (partial && value && prev && typeof prev === 'object' && typeof value === 'object') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             thisNode[prop as any] = { ...thisNode[prop as any], ...value };
           } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             thisNode[prop as any] = value;
           }
           if (!deepEqual(nodeData[node.id][prop], thisNode[prop])) {
@@ -621,11 +629,25 @@ type RetValFromNode<T extends MaybeNode> = T extends LayoutNode
  * Usually, if you're looking for a specific component/node, useResolvedNode() is better.
  */
 export function useNode<T extends string | undefined | LayoutNode>(id: T): RetValFromNode<T> {
-  const node = useNodeTraversal((traverser) => (isNode(id) ? id : traverser.findById(id)));
+  const node = Store.useSelector((state) => {
+    if (!id) {
+      return undefined;
+    }
+
+    if (!state?.nodes) {
+      return undefined;
+    }
+
+    if (id instanceof BaseLayoutNode) {
+      return id;
+    }
+
+    return state.nodes.findById(new TraversalTask(state, state.nodes, undefined, undefined), id);
+  });
   return node as RetValFromNode<T>;
 }
 
-export const useGetPage = (pageId: string) =>
+export const useGetPage = (pageId: string | undefined) =>
   Store.useSelector((state) => {
     if (!pageId) {
       return undefined;
@@ -703,6 +725,7 @@ function isHidden(state: NodesContext, node: LayoutNode | LayoutPage | undefined
   if (isNode(node)) {
     const parent = node.parent;
     if (isNode(parent) && 'isChildHidden' in parent.def && state.nodeData[parent.id]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const childHidden = parent.def.isChildHidden(state.nodeData[parent.id] as any, node);
       if (childHidden) {
         return true;
@@ -806,7 +829,7 @@ export type NodePicker = <N extends LayoutNode | undefined = LayoutNode | undefi
 type NodePickerReturns<N extends LayoutNode | undefined> = NodeDataFromNode<N> | undefined;
 
 function selectNodeData<N extends LayoutNode | undefined>(node: N, state: NodesContext): NodePickerReturns<N> {
-  return (node ? state.nodeData[node.id] : undefined) as any;
+  return (node ? state.nodeData[node.id] : undefined) as NodePickerReturns<N>;
 }
 
 /**
@@ -897,8 +920,9 @@ export const NodesInternal = {
     node: N,
     selector: (state: NodeDataFromNode<N>) => Out,
   ): React.MutableRefObject<N extends undefined ? Out | undefined : Out> {
-    return Store.useSelectorAsRef((s) =>
-      node && s.nodeData[node.id] ? selector(s.nodeData[node.id] as NodeDataFromNode<N>) : undefined,
+    return Store.useSelectorAsRef(
+      (s) => (node && s.nodeData[node.id] ? selector(s.nodeData[node.id] as NodeDataFromNode<N>) : undefined),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) as any;
   },
   useWaitForNodeData<RetVal, N extends LayoutNode | undefined, Out>(

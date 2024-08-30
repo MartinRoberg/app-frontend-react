@@ -5,14 +5,20 @@ import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { LayoutPages } from 'src/utils/layout/LayoutPages';
 import { NodesInternal, useNodesLax } from 'src/utils/layout/NodesContext';
 import { isNode, isPage, isPages } from 'src/utils/layout/typeGuards';
-import type { CompTypes, ParentNode } from 'src/layout/layout';
-import type { BaseLayoutNode, LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { CompTypes, ParentNode, TypeFromNode } from 'src/layout/layout';
+import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 import type { NodesContext, PageData, PagesData } from 'src/utils/layout/NodesContext';
 import type { NodeData } from 'src/utils/layout/types';
 
 type AnyData = PagesData | PageData | NodeData;
-type Node = BaseLayoutNode | LayoutPage | LayoutPages;
-type DataFrom<T extends Node> = T extends LayoutPage ? PageData : T extends LayoutPages ? PagesData : NodeData;
+type Node = LayoutNode | LayoutPage | LayoutPages;
+type DataFrom<T extends Node> = T extends LayoutPage
+  ? PageData
+  : T extends LayoutPages
+    ? PagesData
+    : T extends LayoutNode
+      ? NodeData<TypeFromNode<T>>
+      : never;
 
 export type TraversalRestriction = number | undefined;
 export type TraversalMatcher = (state: AnyData) => boolean | undefined;
@@ -29,11 +35,11 @@ export class TraversalTask {
    * Get the node data for a given node
    */
   public getData<T extends Node>(target: T): DataFrom<T> {
-    if (target instanceof LayoutPage) {
+    if (isPage(target)) {
       return this.state.pagesData.pages[target.pageKey] as DataFrom<T>;
     }
 
-    if (target instanceof LayoutPages) {
+    if (isPages(target)) {
       return this.state.pagesData as DataFrom<T>;
     }
 

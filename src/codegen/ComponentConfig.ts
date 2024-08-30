@@ -19,9 +19,9 @@ import type {
   FormComponent,
   PresentationComponent,
 } from 'src/layout/LayoutComponent';
+import type { DefPluginConfig } from 'src/utils/layout/plugins/NodeDefPlugin';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CategoryImports: { [Category in CompCategory]: GenerateImportedSymbol<any> } = {
+const CategoryImports: { [Category in CompCategory]: GenerateImportedSymbol<unknown> } = {
   [CompCategory.Action]: new GenerateImportedSymbol<ActionComponent<CompTypes>>({
     import: 'ActionComponent',
     from: 'src/layout/LayoutComponent',
@@ -40,15 +40,9 @@ const CategoryImports: { [Category in CompCategory]: GenerateImportedSymbol<any>
   }),
 };
 
-const baseLayoutNode = new GenerateImportedSymbol({
-  import: 'BaseLayoutNode',
-  from: 'src/utils/layout/LayoutNode',
-});
-
 export class ComponentConfig {
   public type: string;
   public typeSymbol: string;
-  public layoutNodeType = baseLayoutNode;
   readonly inner = new CG.obj();
   public behaviors: CompBehaviors = {
     isSummarizable: false,
@@ -56,8 +50,7 @@ export class ComponentConfig {
     canHaveOptions: false,
     canHaveAttachments: false,
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected plugins: NodeDefPlugin<any>[] = [];
+  protected plugins: NodeDefPlugin<DefPluginConfig>[] = [];
 
   constructor(public readonly config: RequiredComponentConfig) {
     this.inner.extends(CG.common('ComponentBase'));
@@ -182,14 +175,6 @@ export class ComponentConfig {
     return this;
   }
 
-  // This will not be used at the moment after we split the group to several components.
-  // However, this is nice to keep for future components that might need it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public setLayoutNodeType(type: GenerateImportedSymbol<any>): this {
-    this.layoutNodeType = type;
-    return this;
-  }
-
   private beforeFinalizing(): void {
     // We have to add these to our typescript types in order for ITextResourceBindings<T>, and similar to work.
     // Components that doesn't have them, will always have the 'undefined' value.
@@ -216,9 +201,6 @@ export class ComponentConfig {
       from: `./index`,
     });
 
-    const nodeObj = this.layoutNodeType.toTypeScript();
-    const nodeSuffix = this.layoutNodeType === baseLayoutNode ? `<'${this.type}'>` : '';
-
     const CompCategory = new CG.import({
       import: 'CompCategory',
       from: `src/layout/common`,
@@ -238,8 +220,8 @@ export class ComponentConfig {
     const staticElements = [
       `export function getConfig() {
          return {
+           category: ${CompCategory}.${this.config.category},
            def: new ${impl.toTypeScript()}(),
-           nodeConstructor: ${nodeObj},
            capabilities: ${JSON.stringify(this.config.capabilities, null, 2)} as const,
            behaviors: ${JSON.stringify(this.behaviors, null, 2)} as const,
          };
@@ -247,7 +229,6 @@ export class ComponentConfig {
       `export type TypeConfig = {
          category: ${CompCategory}.${this.config.category},
          layout: ${this.inner};
-         nodeObj: ${nodeObj}${nodeSuffix};
          plugins: ${pluginUnion};
        }`,
     ];
@@ -431,7 +412,7 @@ export class ComponentConfig {
     }
 
     return `export abstract class ${symbol}Def extends ${categorySymbol}<'${this.type}'> {
-      protected readonly type = '${this.type}';
+      public readonly type = '${this.type}';
       ${pluginMap}
 
       ${this.config.directRendering ? 'directRender(): boolean { return true; }' : ''}

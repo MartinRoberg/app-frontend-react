@@ -6,6 +6,7 @@ import classNames from 'classnames';
 import { NavigationResult, useFinishNodeNavigation } from 'src/features/form/layout/NavigateToNode';
 import { Lang } from 'src/features/language/Lang';
 import { useIsDev } from 'src/hooks/useIsDev';
+import { Def } from 'src/layout/def';
 import { FormComponentContextProvider } from 'src/layout/FormComponentContext';
 import classes from 'src/layout/GenericComponent.module.css';
 import { SummaryComponent } from 'src/layout/Summary/SummaryComponent';
@@ -17,7 +18,6 @@ import type { IGridStyling } from 'src/layout/common.generated';
 import type { GenericComponentOverrideDisplay, IFormComponentContext } from 'src/layout/FormComponentContext';
 import type { PropsFromGenericComponent } from 'src/layout/index';
 import type { CompInternal, CompTypes } from 'src/layout/layout';
-import type { LayoutComponent } from 'src/layout/LayoutComponent';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 interface OverrideProps<Type extends CompTypes> {
@@ -180,8 +180,8 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
     return null;
   }
 
-  const layoutComponent = node.def as unknown as LayoutComponent<Type>;
-  const RenderComponent = layoutComponent.render;
+  const def = Def.fromSpecificNode.asAny(node);
+  const RenderComponent = def.render;
 
   const componentProps: PropsFromGenericComponent<Type> = {
     containerDivRef,
@@ -190,8 +190,8 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
     overrideDisplay,
   };
 
-  if ('renderAsSummary' in item && item.renderAsSummary) {
-    const RenderSummary = 'renderSummary' in node.def ? node.def.renderSummary.bind(node.def) : null;
+  if ('renderAsSummary' in item && item.renderAsSummary && Def.is.category.formOrContainer(def)) {
+    const RenderSummary = def.renderSummary.bind(node.def);
 
     if (!RenderSummary) {
       return null;
@@ -208,7 +208,7 @@ function ActualGenericComponent<Type extends CompTypes = CompTypes>({
     );
   }
 
-  if (overrideDisplay?.directRender || layoutComponent.directRender(item)) {
+  if (overrideDisplay?.directRender || def.directRender(item)) {
     return (
       <FormComponentContextProvider value={formComponentContext}>
         <RenderComponent

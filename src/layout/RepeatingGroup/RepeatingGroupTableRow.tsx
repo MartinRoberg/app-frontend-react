@@ -14,7 +14,7 @@ import { Lang } from 'src/features/language/Lang';
 import { useLanguage } from 'src/features/language/useLanguage';
 import { useDeepValidationsForNode } from 'src/features/validation/selectors/deepValidationsForNode';
 import { useIsMobile } from 'src/hooks/useIsMobile';
-import { implementsDisplayData } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { GenericComponent } from 'src/layout/GenericComponent';
 import classes from 'src/layout/RepeatingGroup/RepeatingGroup.module.css';
 import { useRepeatingGroup } from 'src/layout/RepeatingGroup/RepeatingGroupContext';
@@ -24,7 +24,6 @@ import { useColumnStylesRepeatingGroups } from 'src/utils/formComponentUtils';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { AlertOnChange } from 'src/features/alertOnChange/useAlertOnChange';
-import type { DisplayData } from 'src/features/displayData';
 import type { IUseLanguage } from 'src/features/language/useLanguage';
 import type { ITableColumnFormatting } from 'src/layout/common.generated';
 import type { CompInternal, ITextResourceBindings } from 'src/layout/layout';
@@ -102,13 +101,12 @@ function _RepeatingGroupTableRow({
   const tableNodes = useTableNodes(node, index);
   const displayDataProps = useDisplayDataProps();
   const displayData = tableNodes.map((node) => {
-    const def = node.def;
-    if (!implementsDisplayData(def)) {
+    const def = Def.fromSpecificNode.asAny(node);
+    if (!Def.implements.displayData(def)) {
       return '';
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (def as DisplayData<any>).getDisplayData(node, displayDataProps);
+    return def.getDisplayData(node, displayDataProps);
   });
   const firstCellData = displayData.find((c) => !!c);
   const isEditingRow = isEditing(uuid);

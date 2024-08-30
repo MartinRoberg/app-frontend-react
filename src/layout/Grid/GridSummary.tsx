@@ -13,6 +13,7 @@ import { useUnifiedValidationsForNode } from 'src/features/validation/selectors/
 import { validationsOfSeverity } from 'src/features/validation/utils';
 import { useIsMobile } from 'src/hooks/useIsMobile';
 import { CompCategory } from 'src/layout/common';
+import { Def } from 'src/layout/def';
 import classes from 'src/layout/Grid/GridSummary.module.css';
 import { isGridRowHidden } from 'src/layout/Grid/tools';
 import { EditButton } from 'src/layout/Summary2/CommonSummaryComponents/EditButton';
@@ -27,7 +28,7 @@ import type {
   ITableColumnProperties,
 } from 'src/layout/common.generated';
 import type { GridCellInternal, GridCellNode, GridRowInternal } from 'src/layout/Grid/types';
-import type { ITextResourceBindings } from 'src/layout/layout';
+import type { CompTypes, ITextResourceBindings } from 'src/layout/layout';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 type GridSummaryProps = Readonly<{
@@ -290,8 +291,8 @@ interface BaseCellProps {
   isSmall?: boolean;
 }
 
-interface CellWithComponentProps extends BaseCellProps {
-  cell: GridCellNode;
+interface CellWithComponentProps<T extends CompTypes> extends BaseCellProps {
+  cell: GridCellNode<T>;
 }
 
 interface CellWithTextProps extends PropsWithChildren, BaseCellProps {
@@ -302,14 +303,14 @@ interface CellWithLabelProps extends BaseCellProps {
   cell: GridCellLabelFrom;
 }
 
-function CellWithComponent({
+function CellWithComponent<T extends CompTypes = CompTypes>({
   cell,
   columnStyleOptions,
   isHeader = false,
   rowReadOnly,
   headerTitle,
   isSmall,
-}: CellWithComponentProps) {
+}: CellWithComponentProps<T>) {
   const node = cell.node;
   const CellComponent = isHeader ? Table.HeaderCell : Table.Cell;
   const displayDataProps = useDisplayDataProps();
@@ -317,6 +318,8 @@ function CellWithComponent({
   const errors = validationsOfSeverity(validations, 'error');
   const isHidden = Hidden.useIsHidden(node);
   const columnStyles = columnStyleOptions && getColumnStyles(columnStyleOptions);
+  const def = Def.fromSpecificNode.asFormOrContainer(node);
+  const displayData = def ? def.getDisplayData(node, displayDataProps) : '-';
 
   if (isHidden) {
     return <CellComponent />;
@@ -329,8 +332,7 @@ function CellWithComponent({
       data-header-title={isSmall ? headerTitle : ''}
     >
       <div className={cn(classes.contentWrapper, { [classes.validationError]: errors.length > 0 })}>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {('getDisplayData' in node.def && node.def.getDisplayData(node as LayoutNode<any>, displayDataProps)) || '-'}
+        {displayData}
         {isSmall && !rowReadOnly && (
           <EditButton
             className={classes.mobileEditButton}

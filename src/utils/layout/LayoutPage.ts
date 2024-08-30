@@ -28,7 +28,7 @@ export class LayoutPage implements LayoutObject {
 
   /**
    * Looks for a matching component upwards in the hierarchy, returning the first one (or undefined if
-   * none can be found). A BaseLayoutNode will look at its siblings and then further up in the hierarchy.
+   * none can be found). A LayoutNode will look at its siblings and then further up in the hierarchy.
    * When it reaches a page object like this, we'll have to look to see if any nodes in the page matches,
    * and otherwise pass the task upwards to all pages.
    */

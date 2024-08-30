@@ -6,8 +6,8 @@ import { createStore } from 'zustand';
 import { createZustandContext } from 'src/core/contexts/zustandContext';
 import { GeneratorDebug, generatorLog } from 'src/utils/layout/generator/debug';
 import { GeneratorInternal } from 'src/utils/layout/generator/GeneratorContext';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { NodesInternal, NodesReadiness } from 'src/utils/layout/NodesContext';
+import { isNode } from 'src/utils/layout/typeGuards';
 import type { AddNodeRequest, SetNodePropRequest, SetPagePropRequest } from 'src/utils/layout/NodesContext';
 import type { SetRowExtrasRequest } from 'src/utils/layout/plugins/RepeatingChildrenStorePlugin';
 
@@ -728,8 +728,9 @@ function WhenParentAdded({ id, stage, registryRef, children }: WhenProps) {
   const parent = GeneratorInternal.useParent();
   const ready = NodesInternal.useIsAdded(parent);
   useMarkFinished(id, stage, ready);
-  registryRef.current.conditions =
-    parent instanceof BaseLayoutNode ? `node ${parent.id} must be added` : `page ${parent.pageKey} must be added`;
+  registryRef.current.conditions = isNode(parent)
+    ? `node ${parent.id} must be added`
+    : `page ${parent.pageKey} must be added`;
 
   return ready ? <>{children}</> : null;
 }
@@ -740,10 +741,9 @@ function WhenAllAdded({ id, stage, registryRef, children }: WhenProps) {
   const parentAdded = NodesInternal.useIsAdded(parent);
   const ready = allAdded && parentAdded;
   useMarkFinished(id, stage, ready);
-  registryRef.current.conditions =
-    parent instanceof BaseLayoutNode
-      ? `node ${parent.id} and all others are added`
-      : `page ${parent.pageKey} and all others are added`;
+  registryRef.current.conditions = isNode(parent)
+    ? `node ${parent.id} and all others are added`
+    : `page ${parent.pageKey} and all others are added`;
 
   return ready ? <>{children}</> : null;
 }

@@ -36,7 +36,6 @@ import {
 } from 'src/utils/layout/generator/GeneratorStages';
 import { LayoutSetGenerator } from 'src/utils/layout/generator/LayoutSetGenerator';
 import { GeneratorValidationProvider } from 'src/utils/layout/generator/validation/GenerationValidationContext';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { RepeatingChildrenStorePlugin } from 'src/utils/layout/plugins/RepeatingChildrenStorePlugin';
 import { isNode } from 'src/utils/layout/typeGuards';
@@ -638,7 +637,7 @@ export function useNode<T extends string | undefined | LayoutNode>(id: T): RetVa
       return undefined;
     }
 
-    if (id instanceof BaseLayoutNode) {
+    if (isNode(id)) {
       return id;
     }
 

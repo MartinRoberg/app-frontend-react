@@ -69,7 +69,7 @@ export interface ExprResolver<Type extends CompTypes> {
 }
 
 export abstract class AnyComponent<Type extends CompTypes> {
-  protected readonly type: Type;
+  public readonly type: Type;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected plugins: { [key: string]: NodeDefPlugin<any> } = {};
 
@@ -477,9 +477,3 @@ export abstract class ContainerComponent<Type extends CompTypes> extends _FormCo
     row: BaseRow | undefined,
   ): Partial<NodeData<Type>>;
 }
-
-export type LayoutComponent<Type extends CompTypes = CompTypes> =
-  | PresentationComponent<Type>
-  | FormComponent<Type>
-  | ActionComponent<Type>
-  | ContainerComponent<Type>;

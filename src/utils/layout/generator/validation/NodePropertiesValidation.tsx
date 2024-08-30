@@ -3,20 +3,19 @@ import type { FC } from 'react';
 
 import { useCurrentDataModelSchemaLookup } from 'src/features/datamodel/DataModelSchemaProvider';
 import { formatLayoutSchemaValidationError } from 'src/features/devtools/utils/layoutSchemaValidation';
-import { getNodeDef } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { GeneratorStages } from 'src/utils/layout/generator/GeneratorStages';
 import { GeneratorValidation } from 'src/utils/layout/generator/validation/GenerationValidationContext';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
 import { duplicateStringFilter } from 'src/utils/stringHelper';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
-import type { CompIntermediate, CompTypes, NodeValidationProps } from 'src/layout/layout';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { CompTypes, NodeValidationProps } from 'src/layout/layout';
 
 /**
  * Validates the properties of a node. Note that this is not the same as validating form data in the node.
  */
 export function NodePropertiesValidation<T extends CompTypes>(props: NodeValidationProps<T>) {
-  const def = getNodeDef(props.node);
+  const def = Def.fromSpecificNode.asAny(props.node);
   const LayoutValidators = def.renderLayoutValidators.bind(def) as FC<NodeValidationProps<T>>;
 
   return (
@@ -38,18 +37,15 @@ function DataModelValidation<T extends CompTypes>({ node, intermediateItem }: No
       return [];
     }
 
-    if ('validateDataModelBindings' in node.def) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: LayoutValidationCtx<any> = {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        node: node as LayoutNode<any>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        item: intermediateItem as CompIntermediate<any>,
+    const def = Def.fromSpecificNode.asFormOrContainer(node);
+    if (def) {
+      const ctx: LayoutValidationCtx<T> = {
+        node,
+        item: intermediateItem,
         nodeDataSelector,
         lookupBinding: (binding: string) => schemaLookup.getSchemaForPath(binding),
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return node.def.validateDataModelBindings(ctx as any);
+      return def.validateDataModelBindings(ctx);
     }
 
     return [];
@@ -79,7 +75,7 @@ function SchemaValidation<T extends CompTypes>({ node, externalItem }: NodeValid
     if (!validate) {
       return;
     }
-    const def = getNodeDef(node);
+    const def = Def.fromSpecificNode.asAny(node);
     const errors = def.validateLayoutConfig(externalItem, validate);
     if (!errors) {
       return;

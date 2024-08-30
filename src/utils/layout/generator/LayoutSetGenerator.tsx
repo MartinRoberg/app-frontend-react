@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ExprVal } from 'src/features/expressions/types';
 import { useHiddenLayoutsExpressions, useLayouts } from 'src/features/form/layout/LayoutsContext';
-import { getComponentCapabilities, getComponentDef } from 'src/layout';
+import { getComponentCapabilities } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { ContainerComponent } from 'src/layout/LayoutComponent';
 import { GeneratorDebug } from 'src/utils/layout/generator/debug';
 import { GeneratorInternal, GeneratorPageProvider } from 'src/utils/layout/generator/GeneratorContext';
@@ -418,7 +419,7 @@ interface ComponentClaimChildrenProps {
 }
 
 function ComponentClaimChildren({ component, claims, getProto }: ComponentClaimChildrenProps) {
-  const def = getComponentDef(component.type);
+  const def = Def.fromType(component.type);
   const { addClaim } = claims;
 
   // The first render will be used to determine which components will be claimed as children by others (which will
@@ -465,7 +466,7 @@ interface ComponentProps {
 }
 
 function GenerateComponent({ layout, claim, childClaims }: ComponentProps) {
-  const def = getComponentDef(layout.type);
+  const def = Def.fromType(layout.type);
   const props = useMemo(() => {
     if (def instanceof ContainerComponent) {
       const out: ContainerGeneratorProps = {

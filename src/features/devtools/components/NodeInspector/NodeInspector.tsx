@@ -11,7 +11,7 @@ import { ValidationInspector } from 'src/features/devtools/components/NodeInspec
 import { SplitView } from 'src/features/devtools/components/SplitView/SplitView';
 import { useDevToolsStore } from 'src/features/devtools/data/DevToolsStore';
 import { useCurrentView } from 'src/hooks/useNavigatePage';
-import { implementsAnyValidation } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { useGetPage, useNode } from 'src/utils/layout/NodesContext';
 import { useNodeTraversal } from 'src/utils/layout/useNodeTraversal';
 
@@ -67,7 +67,7 @@ export const NodeInspector = () => {
             >
               <Tabs.List>
                 <Tabs.Tab value='properties'>Egenskaper</Tabs.Tab>
-                {implementsAnyValidation(selectedNode.def) && <Tabs.Tab value='validation'>Validering</Tabs.Tab>}
+                {Def.implements.anyValidation(selectedNode.def) && <Tabs.Tab value='validation'>Validering</Tabs.Tab>}
               </Tabs.List>
               <Tabs.Content value='properties'>
                 <div className={reusedClasses.properties}>

@@ -8,7 +8,7 @@ import classes from 'src/features/devtools/components/NodeInspector/ValidationIn
 import { Lang } from 'src/features/language/Lang';
 import { ValidationMask } from 'src/features/validation';
 import { isValidationVisible } from 'src/features/validation/utils';
-import { implementsAnyValidation } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { AttachmentValidation, NodeValidation, ValidationSeverity } from 'src/features/validation';
@@ -33,7 +33,8 @@ export const ValidationInspector = ({ node }: ValidationInspectorProps) => {
   const { dataModelBindings, type } = useNodeItem(node);
   const attachments = useAttachmentsFor(node);
 
-  if (!implementsAnyValidation(node.def)) {
+  const def = Def.fromAnyNode.asAny(node);
+  if (!Def.implements.anyValidation(def)) {
     return (
       <div style={{ padding: 4 }}>
         <b>{type}</b> implementerer ikke validering.

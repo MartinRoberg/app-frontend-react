@@ -1,9 +1,8 @@
-import { getComponentDef } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import { typedBoolean } from 'src/utils/typing';
-import type { CompClassMap, CompDef } from 'src/layout';
+import type { CompClassMap } from 'src/layout';
 import type { CompCategory } from 'src/layout/common';
-import type { ComponentTypeConfigs } from 'src/layout/components.generated';
 import type { CompIntermediate, CompTypes, LayoutNodeFromCategory, ParentNode } from 'src/layout/layout';
 import type { LayoutObject } from 'src/utils/layout/LayoutObject';
 import type { TraversalTask } from 'src/utils/layout/useNodeTraversal';
@@ -18,7 +17,7 @@ export interface LayoutNodeProps<Type extends CompTypes> {
  * A LayoutNode wraps a component with information about its parent, allowing you to traverse a component (or an
  * instance of a component inside a repeating group), finding other components near it.
  */
-export class BaseLayoutNode<Type extends CompTypes = CompTypes> implements LayoutObject {
+export class LayoutNode<Type extends CompTypes = CompTypes> implements LayoutObject {
   public readonly parent: ParentNode;
   public readonly rowIndex?: number;
   public readonly page: LayoutPage;
@@ -39,7 +38,7 @@ export class BaseLayoutNode<Type extends CompTypes = CompTypes> implements Layou
     this.multiPageIndex = item.multiPageIndex;
     this.page = parent instanceof LayoutPage ? parent : parent.page;
     this.pageKey = this.page.pageKey;
-    this.def = getComponentDef(this.type);
+    this.def = Def.fromType(this.type)!;
     this.parent = parent;
     this.rowIndex = rowIndex;
   }
@@ -79,10 +78,13 @@ export class BaseLayoutNode<Type extends CompTypes = CompTypes> implements Layou
     return parents.filter((parent) => task.passes(parent));
   }
 
-  private childrenAsList(task: TraversalTask) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const def = this.def as CompDef<any>;
-    return def.pickDirectChildren(task.getData(this), task.restriction).filter(typedBoolean) as LayoutNode[];
+  private childrenAsList<T extends CompTypes = CompTypes>(task: TraversalTask): LayoutNode[] {
+    const node = this as unknown as LayoutNode<T>;
+    const def = Def.fromSpecificNode.asContainer(node);
+    if (!def) {
+      return [];
+    }
+    return def.pickDirectChildren(task.getData(node), task.restriction).filter(typedBoolean);
   }
 
   public firstChild(task: TraversalTask): LayoutNode | undefined {
@@ -125,7 +127,3 @@ export class BaseLayoutNode<Type extends CompTypes = CompTypes> implements Layou
     return out as LayoutNode[];
   }
 }
-
-export type LayoutNode<Type extends CompTypes = CompTypes> = Type extends CompTypes
-  ? ComponentTypeConfigs[Type]['nodeObj']
-  : BaseLayoutNode;

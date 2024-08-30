@@ -4,10 +4,11 @@ import { useAttachmentsSelector } from 'src/features/attachments/hooks';
 import { FD } from 'src/features/formData/FormDataWrite';
 import { useCurrentLanguage } from 'src/features/language/LanguageProvider';
 import { Validation } from 'src/features/validation/validationContext';
-import { implementsValidateComponent, implementsValidateEmptyField } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
 import type { AnyValidation, BaseValidation, ValidationDataSources } from 'src/features/validation';
 import type { CompDef, ValidationFilter } from 'src/layout';
+import type { CompTypes } from 'src/layout/layout';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 import type { NodeDataSelector } from 'src/utils/layout/NodesContext';
 
@@ -15,7 +16,10 @@ import type { NodeDataSelector } from 'src/utils/layout/NodesContext';
  * Runs validations defined in the component classes. This runs from the node generator, and will collect all
  * validations for a node and return them.
  */
-export function useNodeValidation(node: LayoutNode, shouldValidate: boolean): AnyValidation[] {
+export function useNodeValidation<T extends CompTypes = CompTypes>(
+  node: LayoutNode<T>,
+  shouldValidate: boolean,
+): AnyValidation[] {
   const fieldSelector = Validation.useFieldSelector();
   const validationDataSources = useValidationDataSources();
   const nodeDataSelector = NodesInternal.useNodeDataSelector();
@@ -26,14 +30,13 @@ export function useNodeValidation(node: LayoutNode, shouldValidate: boolean): An
       return validations;
     }
 
-    if (implementsValidateEmptyField(node.def)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      validations.push(...node.def.runEmptyFieldValidation(node as any, validationDataSources));
+    const def = Def.fromSpecificNode.asAny(node);
+    if (Def.implements.validateEmptyField(def)) {
+      validations.push(...def.runEmptyFieldValidation(node, validationDataSources));
     }
 
-    if (implementsValidateComponent(node.def)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      validations.push(...node.def.runComponentValidation(node as any, validationDataSources));
+    if (Def.implements.validateComponent(def)) {
+      validations.push(...def.runComponentValidation(node, validationDataSources));
     }
 
     const dataModelBindings = validationDataSources.nodeDataSelector(

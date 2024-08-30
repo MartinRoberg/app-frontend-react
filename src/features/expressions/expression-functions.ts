@@ -6,13 +6,12 @@ import { ExprRuntimeError, NodeNotFound, NodeNotFoundWithoutContext } from 'src/
 import { ExprVal } from 'src/features/expressions/types';
 import { addError } from 'src/features/expressions/validation';
 import { SearchParams } from 'src/hooks/useNavigatePage';
-import { implementsDisplayData } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { buildAuthContext } from 'src/utils/authContext';
 import { isDate } from 'src/utils/dateHelpers';
 import { formatDateLocale } from 'src/utils/formatDateLocale';
-import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
-import type { DisplayData } from 'src/features/displayData';
+import { isNode } from 'src/utils/layout/typeGuards';
 import type { EvaluateExpressionParams } from 'src/features/expressions';
 import type { ExprValToActual } from 'src/features/expressions/types';
 import type { ValidationContext } from 'src/features/expressions/validation';
@@ -281,7 +280,7 @@ export const ExprFunctions = {
       }
 
       const node = ensureNode(this.node);
-      if (node instanceof BaseLayoutNode) {
+      if (isNode(node)) {
         const newPath = this.dataSources.transposeSelector(node as LayoutNode, path);
         return pickSimpleValue(newPath, this.dataSources.formDataSelector);
       }
@@ -343,8 +342,8 @@ export const ExprFunctions = {
         throw new ExprRuntimeError(this.expr, this.path, `Unable to find component with identifier ${id}`);
       }
 
-      const def = targetNode.def;
-      if (!implementsDisplayData(def)) {
+      const def = Def.fromAnyNode.asFormOrContainer(targetNode);
+      if (!def) {
         throw new ExprRuntimeError(
           this.expr,
           this.path,
@@ -356,8 +355,7 @@ export const ExprFunctions = {
         return null;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (def as DisplayData<any>).getDisplayData(targetNode, {
+      return def.getDisplayData(targetNode, {
         attachmentsSelector: this.dataSources.attachmentsSelector,
         optionsSelector: this.dataSources.optionsSelector,
         langTools: this.dataSources.langToolsSelector(node as LayoutNode),
@@ -398,7 +396,7 @@ export const ExprFunctions = {
         return null;
       }
 
-      const node = this.node instanceof BaseLayoutNode ? this.node : undefined;
+      const node = isNode(this.node) ? this.node : undefined;
       return this.dataSources.langToolsSelector(node).langAsNonProcessedString(key);
     },
     args: [ExprVal.String] as const,
@@ -600,9 +598,7 @@ function pickSimpleValue(path: string | undefined | null, selector: FormDataSele
   return null;
 }
 
-export function ensureNode(
-  node: LayoutNode | LayoutPage | BaseLayoutNode | NodeNotFoundWithoutContext,
-): LayoutNode | BaseLayoutNode | LayoutPage {
+export function ensureNode(node: LayoutNode | LayoutPage | NodeNotFoundWithoutContext): LayoutNode | LayoutPage {
   if (node instanceof NodeNotFoundWithoutContext) {
     throw new NodeNotFound(node.getId());
   }

@@ -5,7 +5,7 @@ import { evalExpr } from 'src/features/expressions';
 import { ExprVal } from 'src/features/expressions/types';
 import { ExprValidation } from 'src/features/expressions/validation';
 import { useAsRef } from 'src/hooks/useAsRef';
-import { getComponentDef, getNodeConstructor } from 'src/layout';
+import { Def } from 'src/layout/def';
 import { GeneratorDebug } from 'src/utils/layout/generator/debug';
 import { GeneratorInternal, GeneratorProvider } from 'src/utils/layout/generator/GeneratorContext';
 import { useGeneratorErrorBoundaryNodeRef } from 'src/utils/layout/generator/GeneratorErrorBoundary';
@@ -20,6 +20,7 @@ import {
 } from 'src/utils/layout/generator/GeneratorStages';
 import { useEvalExpressionInGenerator } from 'src/utils/layout/generator/useEvalExpression';
 import { NodePropertiesValidation } from 'src/utils/layout/generator/validation/NodePropertiesValidation';
+import { LayoutNode } from 'src/utils/layout/LayoutNode';
 import { Hidden, NodesInternal } from 'src/utils/layout/NodesContext';
 import { useExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
 import type { SimpleEval } from 'src/features/expressions';
@@ -37,7 +38,7 @@ import type {
 } from 'src/layout/layout';
 import type { BasicNodeGeneratorProps, ExprResolver } from 'src/layout/LayoutComponent';
 import type { ChildClaim } from 'src/utils/layout/generator/GeneratorContext';
-import type { LayoutNode, LayoutNodeProps } from 'src/utils/layout/LayoutNode';
+import type { LayoutNodeProps } from 'src/utils/layout/LayoutNode';
 import type { HiddenState } from 'src/utils/layout/NodesContext';
 import type { BaseRow, StateFactoryProps } from 'src/utils/layout/types';
 import type { ExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
@@ -340,13 +341,11 @@ function useNewNode<T extends CompTypes>(item: CompIntermediate<T>): LayoutNode<
   const parent = GeneratorInternal.useParent();
   const row = GeneratorInternal.useRow();
   const rowIndex = row?.index;
-  const LNode = useNodeConstructor(item.type);
 
   return useMemo(() => {
     const newNodeProps: LayoutNodeProps<T> = { item, parent, rowIndex };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new LNode(newNodeProps as any) as LayoutNode<T>;
-  }, [LNode, item, parent, rowIndex]);
+    return new LayoutNode(newNodeProps);
+  }, [item, parent, rowIndex]);
 }
 
 function isFormItem(item: CompIntermediate): item is CompIntermediate & FormComponentProps {
@@ -358,19 +357,10 @@ function isSummarizableItem(item: CompIntermediate): item is CompIntermediate & 
 }
 
 export function useDef<T extends CompTypes>(type: T) {
-  const def = getComponentDef<T>(type)!;
+  const def = Def.fromType<T>(type);
   if (!def) {
     throw new Error(`Component type "${type}" not found`);
   }
 
   return def;
-}
-
-function useNodeConstructor<T extends CompTypes>(type: T) {
-  const LNode = getNodeConstructor(type);
-  if (!LNode) {
-    throw new Error(`Component type "${type}" not found`);
-  }
-
-  return LNode;
 }

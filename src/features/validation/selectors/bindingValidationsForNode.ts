@@ -5,7 +5,7 @@ import type { ComponentValidation, FieldValidation, NodeValidation } from '..';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { CompTypes, IDataModelBindings } from 'src/layout/layout';
-import type { BaseLayoutNode, LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 type OutValues = NodeValidation<ComponentValidation | FieldValidation>[];
 
@@ -15,7 +15,7 @@ type OutValues = NodeValidation<ComponentValidation | FieldValidation>[];
  */
 export function useBindingValidationsForNode<
   N extends LayoutNode,
-  T extends CompTypes = N extends BaseLayoutNode<infer T> ? T : never,
+  T extends CompTypes = N extends LayoutNode<infer T> ? T : never,
 >(node: N): { [binding in keyof NonNullable<IDataModelBindings<T>>]: OutValues } | undefined {
   const component = NodesInternal.useVisibleValidations(node);
   const dataModelBindings = useNodeItem(node).dataModelBindings;

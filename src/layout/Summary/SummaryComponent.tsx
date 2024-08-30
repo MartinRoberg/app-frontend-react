@@ -11,6 +11,7 @@ import { useLanguage } from 'src/features/language/useLanguage';
 import { useNavigationParam } from 'src/features/routing/AppRoutingContext';
 import { useUnifiedValidationsForNode } from 'src/features/validation/selectors/unifiedValidationsForNode';
 import { validationsOfSeverity } from 'src/features/validation/utils';
+import { Def } from 'src/layout/def';
 import { GenericComponent } from 'src/layout/GenericComponent';
 import classes from 'src/layout/Summary/SummaryComponent.module.css';
 import { SummaryContent } from 'src/layout/Summary/SummaryContent';
@@ -86,10 +87,9 @@ function _SummaryComponent({ summaryNode, overrides }: ISummaryComponent, ref: R
 
   const displayGrid =
     display && display.useComponentGrid ? overrides?.grid || targetItem?.grid : overrides?.grid || summaryItem?.grid;
-  const component = targetNode.def;
-  const RenderSummary = 'renderSummary' in component ? component.renderSummary.bind(component) : null;
-  const shouldShowBorder =
-    RenderSummary && 'renderSummaryBoilerplate' in component && component?.renderSummaryBoilerplate();
+  const def = Def.fromAnyNode.asFormOrContainer(targetNode);
+  const RenderSummary = def ? def.renderSummary.bind(def) : null;
+  const shouldShowBorder = def ? RenderSummary && def.renderSummaryBoilerplate() : false;
 
   // This logic is needlessly complex, but our tests depends on it being this way as of now.
   const summaryTestId = overrides?.targetNode
@@ -116,7 +116,7 @@ function _SummaryComponent({ summaryNode, overrides }: ISummaryComponent, ref: R
           [classes.border]: !display?.hideBottomBorder && shouldShowBorder,
         })}
       >
-        {RenderSummary && 'renderSummaryBoilerplate' in component ? (
+        {def && RenderSummary ? (
           <SummaryContent
             onChangeClick={onChangeClick}
             changeText={langAsString('form_filler.summary_item_change')}

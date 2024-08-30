@@ -5,12 +5,12 @@ import { Grid } from '@material-ui/core';
 
 import { Label } from 'src/components/label/Label';
 import { AllComponentValidations } from 'src/features/validation/ComponentValidations';
+import { Def } from 'src/layout/def';
 import { useFormComponentCtx } from 'src/layout/FormComponentContext';
 import { gridBreakpoints } from 'src/utils/formComponentUtils';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import type { LabelProps } from 'src/components/label/Label';
 import type { CompTypes } from 'src/layout/layout';
-import type { LayoutComponent } from 'src/layout/LayoutComponent';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
 type ComponentStructureWrapperProps<Type extends CompTypes> = {
@@ -26,8 +26,8 @@ export function ComponentStructureWrapper<Type extends CompTypes = CompTypes>({
   const overrideItemProps = useFormComponentCtx()?.overrideItemProps;
   const _grid = useNodeItem(node, (i) => i.grid);
   const grid = overrideItemProps?.grid ?? _grid;
-  const layoutComponent = node.def as unknown as LayoutComponent<Type>;
-  const showValidationMessages = layoutComponent.renderDefaultValidations();
+  const def = Def.fromSpecificNode.asAny(node);
+  const showValidationMessages = def.renderDefaultValidations();
 
   const componentWithValidations = (
     <Grid

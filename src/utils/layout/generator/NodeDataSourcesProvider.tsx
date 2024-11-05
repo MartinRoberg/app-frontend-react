@@ -1,7 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { PropsWithChildren } from 'react';
-
-import { shallow } from 'zustand/shallow';
 
 import { createContext } from 'src/core/contexts/context';
 import { useApplicationMetadata } from 'src/features/applicationMetadata/ApplicationMetadataProvider';
@@ -17,48 +15,42 @@ import { useLaxProcessData } from 'src/features/instance/ProcessContext';
 import { useCurrentLanguage } from 'src/features/language/LanguageProvider';
 import { useLanguageWithForcedNodeSelector } from 'src/features/language/useLanguage';
 import { useNodeOptionsSelector } from 'src/features/options/useNodeOptions';
+import { Validation } from 'src/features/validation/validationContext';
+import { useShallowObjectMemo, useShallowObjectSelectorMemo } from 'src/hooks/useShallowObjectMemo';
 import { Hidden, NodesInternal } from 'src/utils/layout/NodesContext';
 import { useDataModelBindingTranspose } from 'src/utils/layout/useDataModelBindingTranspose';
 import { useNodeFormDataSelector } from 'src/utils/layout/useNodeItem';
 import { useNodeTraversalSelector } from 'src/utils/layout/useNodeTraversal';
-import type { ApplicationMetadata } from 'src/features/applicationMetadata/types';
-import type { AttachmentsSelector } from 'src/features/attachments/AttachmentsStorePlugin';
-import type { ExternalApisResult } from 'src/features/externalApi/useExternalApi';
-import type { IUseLanguage } from 'src/features/language/useLanguage';
-import type { NodeOptionsSelector } from 'src/features/options/OptionsStorePlugin';
-import type { FormDataRowsSelector, FormDataSelector } from 'src/layout';
-import type { ILayoutSet, ILayoutSets } from 'src/layout/common.generated';
-import type { IApplicationSettings, IData, IInstanceDataSources, IProcess } from 'src/types/shared';
-import type { LayoutNode } from 'src/utils/layout/LayoutNode';
-import type { NodeDataSelector } from 'src/utils/layout/NodesContext';
-import type { DataModelTransposeSelector } from 'src/utils/layout/useDataModelBindingTranspose';
+import type { ComponentValidationDataSources, EmptyFieldValidationDataSources } from 'src/features/validation';
 import type { ExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
-import type { NodeFormDataSelector } from 'src/utils/layout/useNodeItem';
-import type { NodeTraversalSelector } from 'src/utils/layout/useNodeTraversal';
 
-type NodeDataSources = {
-  currentLanguage: string;
-  formDataSelector: FormDataSelector;
-  invalidDataSelector: FormDataSelector;
-  attachmentsSelector: AttachmentsSelector;
-  nodeDataSelector: NodeDataSelector;
-  applicationMetadata: ApplicationMetadata;
-  dataElements: IData[];
-  layoutSets: ILayoutSets;
-  process?: IProcess;
-  instanceDataSources: IInstanceDataSources | null;
-  applicationSettings: IApplicationSettings | null;
-  dataModelNames: string[];
-  formDataRowsSelector: FormDataRowsSelector;
-  optionsSelector: NodeOptionsSelector;
-  langToolsSelector: (node: LayoutNode | undefined) => IUseLanguage;
-  currentLayoutSet: ILayoutSet | null;
-  isHiddenSelector: ReturnType<typeof Hidden.useIsHiddenSelector>;
-  nodeFormDataSelector: NodeFormDataSelector;
-  nodeTraversal: NodeTraversalSelector;
-  transposeSelector: DataModelTransposeSelector;
-  externalApis: ExternalApisResult;
-};
+const useRawNodeDataSources = () =>
+  useShallowObjectMemo({
+    formDataSelector: FD.useDebouncedSelector(),
+    invalidDataSelector: FD.useInvalidDebouncedSelector(),
+    attachmentsSelector: useAttachmentsSelector(),
+    currentLanguage: useCurrentLanguage(),
+    nodeDataSelector: NodesInternal.useNodeDataSelector(),
+    applicationMetadata: useApplicationMetadata(),
+    dataElements: useLaxInstanceAllDataElements(),
+    dataElementHasErrorsSelector: Validation.useDataElementHasErrorsSelector(),
+    layoutSets: useLayoutSets(),
+    instanceDataSources: useLaxInstanceDataSources(),
+    formDataRowsSelector: FD.useDebouncedRowsSelector(),
+    optionsSelector: useNodeOptionsSelector(),
+    process: useLaxProcessData(),
+    applicationSettings: useApplicationSettings(),
+    langToolsSelector: useLanguageWithForcedNodeSelector(),
+    isHiddenSelector: Hidden.useIsHiddenSelector(),
+    nodeFormDataSelector: useNodeFormDataSelector(),
+    nodeTraversal: useNodeTraversalSelector(),
+    transposeSelector: useDataModelBindingTranspose(),
+    currentLayoutSet: useCurrentLayoutSet() ?? null,
+    dataModelNames: DataModels.useReadableDataTypes(),
+    externalApis: useExternalApis(useApplicationMetadata().externalApiIds ?? []),
+  });
+
+type NodeDataSources = ReturnType<typeof useRawNodeDataSources>;
 
 const { Provider, useCtx } = createContext<NodeDataSources>({
   name: 'NodeDataSources',
@@ -66,98 +58,70 @@ const { Provider, useCtx } = createContext<NodeDataSources>({
 });
 
 export function NodeDataSourcesProvider({ children }: PropsWithChildren) {
-  const formDataSelector = FD.useDebouncedSelector();
-  const invalidDataSelector = FD.useInvalidDebouncedSelector();
-  const attachmentsSelector = useAttachmentsSelector();
-  const currentLanguage = useCurrentLanguage();
-  const nodeDataSelector = NodesInternal.useNodeDataSelector();
-  const applicationMetadata = useApplicationMetadata();
-  const dataElements = useLaxInstanceAllDataElements();
-  const layoutSets = useLayoutSets();
-  const instanceDataSources = useLaxInstanceDataSources();
-  const formDataRowsSelector = FD.useDebouncedRowsSelector();
-  const optionsSelector = useNodeOptionsSelector();
-  const process = useLaxProcessData();
-  const applicationSettings = useApplicationSettings();
-  const langToolsSelector = useLanguageWithForcedNodeSelector();
-  const isHiddenSelector = Hidden.useIsHiddenSelector();
-  const nodeFormDataSelector = useNodeFormDataSelector();
-  const nodeTraversal = useNodeTraversalSelector();
-  const transposeSelector = useDataModelBindingTranspose();
-  const currentLayoutSet = useCurrentLayoutSet() ?? null;
-  const dataModelNames = DataModels.useReadableDataTypes();
-  const externalApiIds = useApplicationMetadata().externalApiIds ?? [];
-  const externalApis = useExternalApis(externalApiIds);
-
-  const prev = React.useRef<NodeDataSources>();
-  const next: NodeDataSources = {
-    formDataSelector,
-    invalidDataSelector,
-    attachmentsSelector,
-    currentLanguage,
-    nodeDataSelector,
-    applicationMetadata,
-    dataElements,
-    layoutSets,
-    instanceDataSources,
-    formDataRowsSelector,
-    optionsSelector,
-    process,
-    applicationSettings,
-    langToolsSelector,
-    isHiddenSelector,
-    nodeFormDataSelector,
-    nodeTraversal,
-    transposeSelector,
-    currentLayoutSet,
-    dataModelNames,
-    externalApis,
-  };
-  const value = shallow(prev.current, next) ? (prev.current as NodeDataSources) : (prev.current = next);
+  const value = useRawNodeDataSources();
   return <Provider value={value}>{children}</Provider>;
 }
 
-export const useNodeDataSources = useCtx;
-export const useNodeDataExpressionSources = () => {
-  const {
-    formDataSelector,
-    formDataRowsSelector,
-    attachmentsSelector,
-    process,
-    optionsSelector,
-    applicationSettings,
-    instanceDataSources,
-    langToolsSelector,
-    currentLanguage,
-    isHiddenSelector,
-    nodeFormDataSelector,
-    nodeDataSelector,
-    nodeTraversal,
-    transposeSelector,
-    currentLayoutSet,
-    externalApis,
-    dataModelNames,
-  } = useCtx();
+/**
+ * Select multiple data sources with shallow memoization
+ */
+export function useNodeDataSources<T extends Partial<NodeDataSources> | NodeDataSources[keyof NodeDataSources][]>(
+  selector: (store: NodeDataSources) => T,
+) {
+  return useShallowObjectSelectorMemo(useCtx(), selector);
+}
 
-  const prev = React.useRef<ExpressionDataSources>();
-  const next: ExpressionDataSources = {
-    formDataSelector,
-    formDataRowsSelector,
-    attachmentsSelector,
-    process,
-    optionsSelector,
-    applicationSettings,
-    instanceDataSources,
-    langToolsSelector,
-    currentLanguage,
-    isHiddenSelector,
-    nodeFormDataSelector,
-    nodeDataSelector,
-    nodeTraversal,
-    transposeSelector,
-    currentLayoutSet,
-    externalApis,
-    dataModelNames,
-  };
-  return shallow(prev.current, next) ? (prev.current as ExpressionDataSources) : (prev.current = next);
+/**
+ * Select a single data source with shallow memoization
+ */
+export function useNodeDataSource<T extends NodeDataSources[keyof NodeDataSources]>(
+  selector: (store: NodeDataSources) => T,
+) {
+  const prev = useRef<T>();
+  const next = selector(useCtx());
+  return prev.current === next ? (prev.current as T) : (prev.current = next);
+}
+
+export const useNodeDataExpressionSources = () => {
+  const dataSources = useCtx();
+  return useShallowObjectMemo<ExpressionDataSources>({
+    formDataSelector: dataSources.formDataSelector,
+    formDataRowsSelector: dataSources.formDataRowsSelector,
+    attachmentsSelector: dataSources.attachmentsSelector,
+    process: dataSources.process,
+    optionsSelector: dataSources.optionsSelector,
+    applicationSettings: dataSources.applicationSettings,
+    instanceDataSources: dataSources.instanceDataSources,
+    langToolsSelector: dataSources.langToolsSelector,
+    currentLanguage: dataSources.currentLanguage,
+    isHiddenSelector: dataSources.isHiddenSelector,
+    nodeFormDataSelector: dataSources.nodeFormDataSelector,
+    nodeDataSelector: dataSources.nodeDataSelector,
+    nodeTraversal: dataSources.nodeTraversal,
+    transposeSelector: dataSources.transposeSelector,
+    currentLayoutSet: dataSources.currentLayoutSet,
+    externalApis: dataSources.externalApis,
+    dataModelNames: dataSources.dataModelNames,
+  });
+};
+export const useEmptyFieldValidationDataSources = () => {
+  const dataSources = useCtx();
+  return useShallowObjectMemo<EmptyFieldValidationDataSources>({
+    nodeDataSelector: dataSources.nodeDataSelector,
+    invalidDataSelector: dataSources.invalidDataSelector,
+    formDataSelector: dataSources.formDataSelector,
+  });
+};
+export const useComponentValidationDataSources = () => {
+  const dataSources = useCtx();
+  return useShallowObjectMemo<ComponentValidationDataSources>({
+    nodeDataSelector: dataSources.nodeDataSelector,
+    formDataSelector: dataSources.formDataSelector,
+    currentLanguage: dataSources.currentLanguage,
+    attachmentsSelector: dataSources.attachmentsSelector,
+    layoutSets: dataSources.layoutSets,
+    dataElements: dataSources.dataElements,
+    applicationMetadata: dataSources.applicationMetadata,
+    dataElementHasErrorsSelector: dataSources.dataElementHasErrorsSelector,
+  });
 };

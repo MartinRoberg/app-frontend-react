@@ -3,7 +3,11 @@ import { useMemo } from 'react';
 import { DataModels } from 'src/features/datamodel/DataModelsProvider';
 import { Validation } from 'src/features/validation/validationContext';
 import { implementsValidateComponent, implementsValidateEmptyField } from 'src/layout';
-import { useNodeDataSources } from 'src/utils/layout/generator/NodeDataSourcesProvider';
+import {
+  useComponentValidationDataSources,
+  useEmptyFieldValidationDataSources,
+  useNodeDataSource,
+} from 'src/utils/layout/generator/NodeDataSourcesProvider';
 import type {
   AnyValidation,
   BaseValidation,
@@ -23,18 +27,10 @@ export function useNodeValidation(
   node: LayoutNode,
   shouldValidate: boolean,
 ): { validations: AnyValidation[]; processedLast: ValidationsProcessedLast } {
-  const {
-    formDataSelector,
-    invalidDataSelector,
-    attachmentsSelector,
-    currentLanguage,
-    nodeDataSelector,
-    applicationMetadata,
-    dataElements,
-    layoutSets,
-  } = useNodeDataSources();
+  const emptyFieldValidationDataSources = useEmptyFieldValidationDataSources();
+  const componentValidationDataSources = useComponentValidationDataSources();
+  const nodeDataSelector = useNodeDataSource((data) => data.nodeDataSelector);
 
-  const dataElementHasErrorsSelector = Validation.useDataElementHasErrorsSelector();
   const dataModelSelector = Validation.useDataModelSelector();
   const getDataElementIdForDataType = DataModels.useGetDataElementIdForDataType();
   const processedLast = Validation.useProcessedLast();
@@ -46,17 +42,13 @@ export function useNodeValidation(
 
     if (implementsValidateEmptyField(node.def)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const validations = node.def.runEmptyFieldValidation(node as any, {
-        formDataSelector,
-        invalidDataSelector,
-        nodeDataSelector,
-      });
+      const validations = node.def.runEmptyFieldValidation(node as any, emptyFieldValidationDataSources);
 
       return validations.length ? validations : emptyArray;
     }
 
     return emptyArray;
-  }, [formDataSelector, invalidDataSelector, node, nodeDataSelector, shouldValidate]);
+  }, [emptyFieldValidationDataSources, node, shouldValidate]);
 
   const componentValidations = useMemo(() => {
     if (!shouldValidate) {
@@ -65,33 +57,13 @@ export function useNodeValidation(
 
     if (implementsValidateComponent(node.def)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const validations = node.def.runComponentValidation(node as any, {
-        formDataSelector,
-        attachmentsSelector,
-        currentLanguage,
-        nodeDataSelector,
-        applicationMetadata,
-        dataElements,
-        layoutSets,
-        dataElementHasErrorsSelector,
-      });
+      const validations = node.def.runComponentValidation(node as any, componentValidationDataSources);
 
       return validations.length ? validations : emptyArray;
     }
 
     return emptyArray;
-  }, [
-    applicationMetadata,
-    attachmentsSelector,
-    currentLanguage,
-    dataElementHasErrorsSelector,
-    dataElements,
-    formDataSelector,
-    layoutSets,
-    node,
-    nodeDataSelector,
-    shouldValidate,
-  ]);
+  }, [componentValidationDataSources, node, shouldValidate]);
 
   const backendValidations = useMemo(() => {
     if (!shouldValidate) {

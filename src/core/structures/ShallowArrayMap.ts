@@ -20,6 +20,7 @@
 export class ShallowArrayMap<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private data: Map<any, any>[] = [];
+  private _values: T[] = [];
 
   public has(key: unknown[]): boolean {
     const keyLength = key.length;
@@ -52,7 +53,8 @@ export class ShallowArrayMap<T> {
       }
     }
 
-    return map.get(key[keyLength - 1]);
+    const index = map.get(key[keyLength - 1]);
+    return this._values[index];
   }
 
   public set(key: unknown[], value: T): void {
@@ -69,7 +71,9 @@ export class ShallowArrayMap<T> {
       map = map.get(key[i]);
     }
 
-    map.set(key[keyLength - 1], value);
+    const index = this._values.length;
+    map.set(key[keyLength - 1], index);
+    this._values.push(value);
   }
 
   public delete(key: unknown[]): void {
@@ -86,29 +90,13 @@ export class ShallowArrayMap<T> {
       }
     }
 
+    const index = map.get(key[keyLength - 1]);
     map.delete(key[keyLength - 1]);
+    delete this._values[index];
   }
 
   public values(): T[] {
-    const out: T[] = [];
-    const stack = [...this.data];
-
-    while (stack.length) {
-      const map = stack.pop();
-      if (!map) {
-        continue;
-      }
-
-      for (const value of map.values()) {
-        if (this.isShallowArrayMap(value)) {
-          stack.push(value);
-        } else {
-          out.push(value);
-        }
-      }
-    }
-
-    return out;
+    return this._values;
   }
 
   public entries(): [unknown[], T][] {

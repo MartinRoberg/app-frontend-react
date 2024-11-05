@@ -12,7 +12,7 @@ import { formatISOString, getDateConstraint, getDateFormat, strictParseISO } fro
 import { getDatepickerFormat } from 'src/utils/formatDateLocale';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
 import type { DisplayDataProps } from 'src/features/displayData';
-import type { BaseValidation, ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type { BaseValidation, ComponentValidation, ComponentValidationDataSources } from 'src/features/validation';
 import type {
   PropsFromGenericComponent,
   ValidateComponent,
@@ -67,7 +67,7 @@ export class Datepicker extends DatepickerDef implements ValidateComponent<'Date
 
   runComponentValidation(
     node: LayoutNode<'Datepicker'>,
-    { formDataSelector, currentLanguage, nodeDataSelector }: ValidationDataSources,
+    { formDataSelector, currentLanguage, nodeDataSelector }: ComponentValidationDataSources,
   ): ComponentValidation[] {
     const field = nodeDataSelector((picker) => picker(node)?.layout.dataModelBindings?.simpleBinding, [node]);
     const data = field ? formDataSelector(field) : undefined;

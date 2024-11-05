@@ -90,7 +90,25 @@ export class ShallowArrayMap<T> {
   }
 
   public values(): T[] {
-    return this.entries().map(([, value]) => value);
+    const out: T[] = [];
+    const stack = [...this.data];
+
+    while (stack.length) {
+      const map = stack.pop();
+      if (!map) {
+        continue;
+      }
+
+      for (const value of map.values()) {
+        if (this.isShallowArrayMap(value)) {
+          stack.push(value);
+        } else {
+          out.push(value);
+        }
+      }
+    }
+
+    return out;
   }
 
   public entries(): [unknown[], T][] {

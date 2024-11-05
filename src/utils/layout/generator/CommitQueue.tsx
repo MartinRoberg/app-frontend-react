@@ -45,9 +45,11 @@ export function useCommit() {
   const setPageProps = NodesInternal.useSetPageProps();
   const setRowExtras = NodesInternal.useSetRowExtras();
   const setRowUuids = NodesInternal.useSetRowUuids();
-  const toCommit = GeneratorInternal.useCommitQueue();
+  const registry = GeneratorInternal.useRegistry();
 
   return useCallback(() => {
+    const toCommit = registry.current.toCommit;
+
     if (toCommit.addNodes.length) {
       generatorLog('logCommits', 'Committing', toCommit.addNodes.length, 'addNodes requests');
       addNodes(toCommit.addNodes);
@@ -95,7 +97,7 @@ export function useCommit() {
 
     updateCommitsPendingInBody(toCommit);
     return changes;
-  }, [addNodes, setNodeProps, setRowExtras, setRowUuids, toCommit, setPageProps]);
+  }, [registry, addNodes, setNodeProps, setRowExtras, setRowUuids, setPageProps]);
 }
 
 export function SetWaitForCommits() {
@@ -148,15 +150,14 @@ function useAddToQueue<T extends keyof RegistryCommitQueues>(
   condition: boolean,
 ) {
   const registry = GeneratorInternal.useRegistry();
-  const toCommit = GeneratorInternal.useCommitQueue();
   const commit = useCommitWhenFinished();
 
   if (condition) {
     registry.current.toCommitCount += 1;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toCommit[queue].push(request as any);
-    updateCommitsPendingInBody(toCommit);
+    registry.current.toCommit[queue].push(request as any);
+    updateCommitsPendingInBody(registry.current.toCommit);
     if (commitAfter) {
       commit();
     }

@@ -17,10 +17,13 @@ import {
   StageEvaluateExpressions,
   StageMarkHidden,
 } from 'src/utils/layout/generator/GeneratorStages';
+import {
+  NodeDataSourcesProvider,
+  useNodeDataExpressionSources,
+} from 'src/utils/layout/generator/NodeDataSourcesProvider';
 import { useEvalExpressionInGenerator } from 'src/utils/layout/generator/useEvalExpression';
 import { NodePropertiesValidation } from 'src/utils/layout/generator/validation/NodePropertiesValidation';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
-import { useExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
 import type { SimpleEval } from 'src/features/expressions';
 import type { ExprConfig, ExprResolved, ExprValToActual, ExprValToActualOrExpr } from 'src/features/expressions/types';
 import type { CompDef } from 'src/layout';
@@ -59,39 +62,41 @@ export function NodeGenerator({ children, claim, externalItem }: PropsWithChildr
   return (
     // Adding id as a key to make it easier to see which component is being rendered in the React DevTools
     <GeneratorRunProvider key={intermediateItem.id}>
-      <GeneratorCondition
-        stage={StageAddNodes}
-        mustBeAdded='parent'
-      >
-        <AddRemoveNode
-          {...commonProps}
-          claim={claim}
-        />
-      </GeneratorCondition>
-      <GeneratorCondition
-        stage={StageMarkHidden}
-        mustBeAdded='parent'
-      >
-        <MarkAsHidden {...commonProps} />
-      </GeneratorCondition>
-      <GeneratorCondition
-        stage={StageEvaluateExpressions}
-        mustBeAdded='all'
-      >
-        <ResolveExpressions {...commonProps} />
-      </GeneratorCondition>
-      <GeneratorNodeProvider
-        parent={node}
-        item={intermediateItem}
-      >
+      <NodeDataSourcesProvider>
+        <GeneratorCondition
+          stage={StageAddNodes}
+          mustBeAdded='parent'
+        >
+          <AddRemoveNode
+            {...commonProps}
+            claim={claim}
+          />
+        </GeneratorCondition>
         <GeneratorCondition
           stage={StageMarkHidden}
           mustBeAdded='parent'
         >
-          <NodePropertiesValidation {...commonProps} />
+          <MarkAsHidden {...commonProps} />
         </GeneratorCondition>
-        {children}
-      </GeneratorNodeProvider>
+        <GeneratorCondition
+          stage={StageEvaluateExpressions}
+          mustBeAdded='all'
+        >
+          <ResolveExpressions {...commonProps} />
+        </GeneratorCondition>
+        <GeneratorNodeProvider
+          parent={node}
+          item={intermediateItem}
+        >
+          <GeneratorCondition
+            stage={StageMarkHidden}
+            mustBeAdded='parent'
+          >
+            <NodePropertiesValidation {...commonProps} />
+          </GeneratorCondition>
+          {children}
+        </GeneratorNodeProvider>
+      </NodeDataSourcesProvider>
     </GeneratorRunProvider>
   );
 }
@@ -171,7 +176,7 @@ export function useExpressionResolverProps<T extends CompTypes>(
   _item: CompIntermediateExact<T>,
   rowIndex?: number,
 ): ExprResolver<T> {
-  const allDataSources = useExpressionDataSources();
+  const allDataSources = useNodeDataExpressionSources();
   const allDataSourcesAsRef = useAsRef(allDataSources);
 
   // The hidden property is handled elsewhere, and should never be passed to the item (and resolved as an

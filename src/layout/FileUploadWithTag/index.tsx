@@ -9,7 +9,11 @@ import { FileUploadWithTagDef } from 'src/layout/FileUploadWithTag/config.def.ge
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
 import type { DisplayDataProps } from 'src/features/displayData';
-import type { AttachmentValidation, ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type {
+  AttachmentValidation,
+  ComponentValidation,
+  ComponentValidationDataSources,
+} from 'src/features/validation';
 import type { PropsFromGenericComponent, ValidateComponent } from 'src/layout';
 import type { SummaryRendererProps } from 'src/layout/LayoutComponent';
 import type { Summary2Props } from 'src/layout/Summary2/SummaryComponent2/types';
@@ -47,7 +51,7 @@ export class FileUploadWithTag extends FileUploadWithTagDef implements ValidateC
 
   runComponentValidation(
     node: LayoutNode<'FileUploadWithTag'>,
-    { attachmentsSelector, nodeDataSelector }: ValidationDataSources,
+    { attachmentsSelector, nodeDataSelector }: ComponentValidationDataSources,
   ): ComponentValidation[] {
     const validations: ComponentValidation[] = [];
     const minNumberOfAttachments = nodeDataSelector((picker) => picker(node)?.item?.minNumberOfAttachments, [node]);

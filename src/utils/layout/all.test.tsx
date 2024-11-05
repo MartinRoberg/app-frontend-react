@@ -13,7 +13,6 @@ import { fetchApplicationMetadata } from 'src/queries/queries';
 import { ensureAppsDirIsSet, getAllApps } from 'src/test/allApps';
 import { renderWithInstanceAndLayout } from 'src/test/renderWithProviders';
 import { NodesInternal } from 'src/utils/layout/NodesContext';
-import { TraversalTask } from 'src/utils/layout/useNodeTraversal';
 import type { ExternalAppLayoutSet } from 'src/test/allApps';
 
 const env = dotenv.config();
@@ -61,7 +60,7 @@ function RenderAllComponents() {
   if (!nodes) {
     throw new Error('No nodes found');
   }
-  const all = nodes.allNodes(new TraversalTask(state, nodes, undefined, undefined));
+  const all = nodes.allNodes();
 
   return (
     <>

@@ -218,16 +218,21 @@ export type ValidationsProcessedLast = {
 /**
  * Contains all the necessary elements from the store to run frontend validations.
  */
-export type ValidationDataSources = {
+export type ComponentValidationDataSources = {
   currentLanguage: string;
   formDataSelector: FormDataSelector;
-  invalidDataSelector: FormDataSelector;
   attachmentsSelector: AttachmentsSelector;
   nodeDataSelector: NodeDataSelector;
   applicationMetadata: ApplicationMetadata;
   dataElements: IData[];
   layoutSets: ILayoutSets;
   dataElementHasErrorsSelector: DataElementHasErrorsSelector;
+};
+
+export type EmptyFieldValidationDataSources = {
+  formDataSelector: FormDataSelector;
+  invalidDataSelector: FormDataSelector;
+  nodeDataSelector: NodeDataSelector;
 };
 
 /**

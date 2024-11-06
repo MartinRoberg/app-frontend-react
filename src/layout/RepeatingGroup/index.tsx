@@ -11,7 +11,7 @@ import { RepeatingGroupsFocusProvider } from 'src/layout/RepeatingGroup/Provider
 import { SummaryRepeatingGroup } from 'src/layout/RepeatingGroup/Summary/SummaryRepeatingGroup';
 import { RepeatingGroupSummary } from 'src/layout/RepeatingGroup/Summary2/RepeatingGroupSummary';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
-import type { BaseValidation, ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type { BaseValidation, ComponentValidation, ComponentValidationDataSources } from 'src/features/validation';
 import type { ExprResolver, SummaryRendererProps } from 'src/layout/LayoutComponent';
 import type { GroupExpressions, RepGroupInternal, RepGroupRowExtras } from 'src/layout/RepeatingGroup/types';
 import type { Summary2Props } from 'src/layout/Summary2/SummaryComponent2/types';
@@ -99,7 +99,7 @@ export class RepeatingGroup extends RepeatingGroupDef implements ValidateCompone
 
   runComponentValidation(
     node: LayoutNode<'RepeatingGroup'>,
-    { nodeDataSelector }: ValidationDataSources,
+    { nodeDataSelector }: ComponentValidationDataSources,
   ): ComponentValidation[] {
     const dataModelBindings = nodeDataSelector((picker) => picker(node)?.layout.dataModelBindings, [node]);
     if (!dataModelBindings) {

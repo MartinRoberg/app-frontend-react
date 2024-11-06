@@ -17,7 +17,7 @@ import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation
 import type { DisplayData, DisplayDataProps } from 'src/features/displayData';
 import type { SimpleEval } from 'src/features/expressions';
 import type { ExprResolved, ExprVal } from 'src/features/expressions/types';
-import type { ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type { ComponentValidation, EmptyFieldValidationDataSources } from 'src/features/validation';
 import type {
   ComponentBase,
   FormComponentProps,
@@ -411,8 +411,11 @@ export abstract class FormComponent<Type extends CompTypes>
 {
   readonly category = CompCategory.Form;
 
-  runEmptyFieldValidation(node: LayoutNode<Type>, ValidationDataSources: ValidationDataSources): ComponentValidation[] {
-    return runEmptyFieldValidationAllBindings(node, ValidationDataSources);
+  runEmptyFieldValidation(
+    node: LayoutNode<Type>,
+    validationDataSources: EmptyFieldValidationDataSources,
+  ): ComponentValidation[] {
+    return runEmptyFieldValidationAllBindings(node, validationDataSources);
   }
 }
 

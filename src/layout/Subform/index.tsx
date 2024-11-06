@@ -6,9 +6,9 @@ import { Form, FormFirstPage } from 'src/components/form/Form';
 import { TaskStoreProvider } from 'src/core/contexts/taskStoreContext';
 import {
   type ComponentValidation,
+  type ComponentValidationDataSources,
   FrontendValidationSource,
   type SubformValidation,
-  type ValidationDataSources,
   ValidationMask,
 } from 'src/features/validation';
 import { SubformDef } from 'src/layout/Subform/config.def.generated';
@@ -90,7 +90,7 @@ export class Subform extends SubformDef implements ValidateComponent<'Subform'>,
       nodeDataSelector,
       layoutSets,
       dataElementHasErrorsSelector,
-    }: ValidationDataSources,
+    }: ComponentValidationDataSources,
   ): ComponentValidation[] {
     const layoutSetName = nodeDataSelector((picker) => picker(node)?.layout.layoutSet, [node]);
     if (!layoutSetName) {

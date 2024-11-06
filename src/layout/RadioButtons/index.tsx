@@ -9,7 +9,7 @@ import { RadioButtonsSummary } from 'src/layout/RadioButtons/RadioButtonsSummary
 import { SummaryItemSimple } from 'src/layout/Summary/SummaryItemSimple';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
 import type { DisplayDataProps } from 'src/features/displayData';
-import type { ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type { ComponentValidation, EmptyFieldValidationDataSources } from 'src/features/validation';
 import type { PropsFromGenericComponent } from 'src/layout';
 import type { SummaryRendererProps } from 'src/layout/LayoutComponent';
 import type { Summary2Props } from 'src/layout/Summary2/SummaryComponent2/types';
@@ -48,7 +48,7 @@ export class RadioButtons extends RadioButtonsDef {
 
   runEmptyFieldValidation(
     node: BaseLayoutNode<'RadioButtons'>,
-    validationDataSources: ValidationDataSources,
+    validationDataSources: EmptyFieldValidationDataSources,
   ): ComponentValidation[] {
     return runEmptyFieldValidationOnlySimpleBinding(node, validationDataSources);
   }

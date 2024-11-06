@@ -6,8 +6,9 @@ import { useNodeValidation } from 'src/features/validation/nodeValidation/useNod
 import { getInitialMaskFromNodeItem } from 'src/features/validation/utils';
 import { NodesStateQueue } from 'src/utils/layout/generator/CommitQueue';
 import { GeneratorInternal } from 'src/utils/layout/generator/GeneratorContext';
+import { GeneratorData } from 'src/utils/layout/generator/GeneratorDataSources';
 import { GeneratorCondition, StageFormValidation } from 'src/utils/layout/generator/GeneratorStages';
-import { type NodePicker, NodesInternal } from 'src/utils/layout/NodesContext';
+import { type NodePicker } from 'src/utils/layout/NodesContext';
 import type { AnyValidation, AttachmentValidation } from 'src/features/validation/index';
 import type { CompCategory } from 'src/layout/common';
 import type { TypesFromCategory } from 'src/layout/layout';
@@ -30,7 +31,7 @@ function StoreValidationsInNodeWorker() {
   const item = GeneratorInternal.useIntermediateItem()!;
   const node = GeneratorInternal.useParent() as Node;
   const shouldValidate = !('renderAsSummary' in item && item.renderAsSummary);
-  const nodeDataSelector = NodesInternal.useNodeDataSelector();
+  const nodeDataSelector = GeneratorData.useDataSource((data) => data.nodeDataSelector);
 
   const { validations: freshValidations, processedLast } = useNodeValidation(node, shouldValidate);
   const validations = nodeDataSelector(getUpdatedValidations(freshValidations, node), [node]);

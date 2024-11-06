@@ -36,6 +36,7 @@ export function useDelayedSelector<C extends DSConfig>({
   equalityFn = deepEqual,
   onlyReRenderWhen,
 }: DSProps<C>): DSReturn<C> {
+  // TODO: Reduce number of hooks
   const selectorsCalled = useRef<SelectorMap<C>>();
   const [renderCount, forceRerender] = useState(0);
   const lastReRenderValue = useRef<unknown>(undefined);

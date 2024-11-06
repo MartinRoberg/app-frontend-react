@@ -3,7 +3,12 @@ import type { MutableRefObject, ReactNode } from 'react';
 import { getComponentConfigs } from 'src/layout/components.generated';
 import type { CompBehaviors } from 'src/codegen/Config';
 import type { DisplayData } from 'src/features/displayData';
-import type { BaseValidation, ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type {
+  BaseValidation,
+  ComponentValidation,
+  ComponentValidationDataSources,
+  EmptyFieldValidationDataSources,
+} from 'src/features/validation';
 import type { IDataModelReference } from 'src/layout/common.generated';
 import type { IGenericComponentProps } from 'src/layout/GenericComponent';
 import type { CompInternal, CompTypes } from 'src/layout/layout';
@@ -85,7 +90,10 @@ export function implementsAnyValidation<Def extends CompDef>(
 }
 
 export interface ValidateEmptyField<Type extends CompTypes> {
-  runEmptyFieldValidation: (node: LayoutNode<Type>, validationContext: ValidationDataSources) => ComponentValidation[];
+  runEmptyFieldValidation: (
+    node: LayoutNode<Type>,
+    validationContext: EmptyFieldValidationDataSources,
+  ) => ComponentValidation[];
 }
 
 export function implementsValidateEmptyField<Def extends CompDef>(
@@ -95,7 +103,10 @@ export function implementsValidateEmptyField<Def extends CompDef>(
 }
 
 export interface ValidateComponent<Type extends CompTypes> {
-  runComponentValidation: (node: LayoutNode<Type>, validationContext: ValidationDataSources) => ComponentValidation[];
+  runComponentValidation: (
+    node: LayoutNode<Type>,
+    validationContext: ComponentValidationDataSources,
+  ) => ComponentValidation[];
 }
 
 export function implementsValidateComponent<Def extends CompDef>(

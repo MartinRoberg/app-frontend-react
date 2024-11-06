@@ -3,7 +3,10 @@ import type { AttachmentsSelector } from 'src/features/attachments/AttachmentsSt
 import type { Expression, ExprValToActual } from 'src/features/expressions/types';
 import type { DataElementSelector } from 'src/features/instance/InstanceContext';
 import type { TextReference, ValidLangParam } from 'src/features/language/useLanguage';
-import type { DataElementHasErrorsSelector } from 'src/features/validation/validationContext';
+import type {
+  DataElementHasErrorsSelector,
+  DataModelValidationSelector,
+} from 'src/features/validation/validationContext';
 import type { FormDataSelector } from 'src/layout';
 import type { ILayoutSets } from 'src/layout/common.generated';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
@@ -215,19 +218,27 @@ export type ValidationsProcessedLast = {
   initial: BackendValidationIssue[] | undefined;
 };
 
-/**
- * Contains all the necessary elements from the store to run frontend validations.
- */
-export type ValidationDataSources = {
+export type ComponentValidationDataSources = {
   currentLanguage: string;
   formDataSelector: FormDataSelector;
-  invalidDataSelector: FormDataSelector;
   attachmentsSelector: AttachmentsSelector;
   nodeDataSelector: NodeDataSelector;
   applicationMetadata: ApplicationMetadata;
   dataElementsSelector: DataElementSelector;
   layoutSets: ILayoutSets;
   dataElementHasErrorsSelector: DataElementHasErrorsSelector;
+};
+
+export type EmptyFieldValidationDataSources = {
+  formDataSelector: FormDataSelector;
+  invalidDataSelector: FormDataSelector;
+  nodeDataSelector: NodeDataSelector;
+};
+
+export type DataModelValidationDataSources = {
+  nodeDataSelector: NodeDataSelector;
+  dataModelValidationSelector: DataModelValidationSelector;
+  getDataElementIdForDataType: (dataType: string) => string | null;
 };
 
 /**

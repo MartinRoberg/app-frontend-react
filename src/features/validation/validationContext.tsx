@@ -51,7 +51,7 @@ interface Internals {
   updateDataModelValidations: (
     key: Exclude<keyof Internals['individualValidations'], 'backend'>,
     dataElementId: string,
-    validations?: FieldValidations,
+    validations: FieldValidations,
   ) => void;
   updateBackendValidations: (
     backendValidations: { [dataElementId: string]: FieldValidations } | undefined,
@@ -91,15 +91,13 @@ function initialCreateStore() {
       },
       updateDataModelValidations: (key, dataElementId, validations) =>
         set((state) => {
-          if (validations) {
-            state.individualValidations[key][dataElementId] = validations;
-            state.state.dataModels[dataElementId] = mergeFieldValidations(
-              state.individualValidations.backend[dataElementId],
-              state.individualValidations.invalidData[dataElementId],
-              state.individualValidations.schema[dataElementId],
-              state.individualValidations.expression[dataElementId],
-            );
-          }
+          state.individualValidations[key][dataElementId] = validations;
+          state.state.dataModels[dataElementId] = mergeFieldValidations(
+            state.individualValidations.backend[dataElementId],
+            state.individualValidations.invalidData[dataElementId],
+            state.individualValidations.schema[dataElementId],
+            state.individualValidations.expression[dataElementId],
+          );
         }),
       updateBackendValidations: (backendValidations, processedLast, taskValidations) =>
         set((state) => {
@@ -309,7 +307,7 @@ function useDS<U>(outerSelector: (state: ValidationContext) => U) {
 }
 
 export type ValidationSelector = ReturnType<typeof Validation.useSelector>;
-export type ValidationDataModelSelector = ReturnType<typeof Validation.useDataModelSelector>;
+export type DataModelValidationSelector = ReturnType<typeof Validation.useDataModelValidationSelector>;
 export type DataElementHasErrorsSelector = ReturnType<typeof Validation.useDataElementHasErrorsSelector>;
 
 export const Validation = {
@@ -317,7 +315,7 @@ export const Validation = {
 
   // Selectors. These are memoized, so they won't cause a re-render unless the selected fields change.
   useSelector: () => useDS((state) => state),
-  useDataModelSelector: () => useDS((state) => state.state.dataModels),
+  useDataModelValidationSelector: () => useDS((state) => state.state.dataModels),
 
   useDataElementHasErrorsSelector: () =>
     useDelayedSelector({

@@ -9,7 +9,7 @@ import { MultipleSelectComponent } from 'src/layout/MultipleSelect/MultipleSelec
 import { MultipleSelectSummary } from 'src/layout/MultipleSelect/MultipleSelectSummary';
 import type { LayoutValidationCtx } from 'src/features/devtools/layoutValidation/types';
 import type { DisplayDataProps } from 'src/features/displayData';
-import type { ComponentValidation, ValidationDataSources } from 'src/features/validation';
+import type { ComponentValidation, EmptyFieldValidationDataSources } from 'src/features/validation';
 import type { PropsFromGenericComponent } from 'src/layout';
 import type { SummaryRendererProps } from 'src/layout/LayoutComponent';
 import type { Summary2Props } from 'src/layout/Summary2/SummaryComponent2/types';
@@ -57,7 +57,7 @@ export class MultipleSelect extends MultipleSelectDef {
 
   runEmptyFieldValidation(
     node: BaseLayoutNode<'MultipleSelect'>,
-    validationDataSources: ValidationDataSources,
+    validationDataSources: EmptyFieldValidationDataSources,
   ): ComponentValidation[] {
     return runEmptyFieldValidationOnlySimpleBinding(node, validationDataSources);
   }

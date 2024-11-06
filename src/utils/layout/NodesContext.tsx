@@ -36,6 +36,7 @@ import { getComponentDef } from 'src/layout';
 import { useGetAwaitingCommits } from 'src/utils/layout/generator/CommitQueue';
 import { GeneratorDebug, generatorLog } from 'src/utils/layout/generator/debug';
 import { GeneratorGlobalProvider, GeneratorInternal } from 'src/utils/layout/generator/GeneratorContext';
+import { GlobalGeneratorDataSourcesProvider } from 'src/utils/layout/generator/GeneratorDataSources';
 import {
   createStagesStore,
   GeneratorStages,
@@ -174,12 +175,11 @@ export function nodesProduce(fn: (draft: NodesContext) => void) {
 }
 
 interface CreateStoreProps {
-  validationsProcessedLast: ValidationsProcessedLast;
   registry: MutableRefObject<Registry>;
 }
 
 export type NodesContextStore = StoreApi<NodesContext>;
-export function createNodesDataStore({ registry, validationsProcessedLast }: CreateStoreProps) {
+export function createNodesDataStore({ registry }: CreateStoreProps) {
   const defaultState = {
     readiness: NodesReadiness.NotReady,
     addRemoveCounter: 0,
@@ -193,7 +193,10 @@ export function createNodesDataStore({ registry, validationsProcessedLast }: Cre
     childrenMap: {},
     hiddenViaRules: {},
     hiddenViaRulesRan: false,
-    validationsProcessedLast,
+    validationsProcessedLast: {
+      initial: undefined,
+      incremental: undefined,
+    },
   };
 
   return createStore<NodesContext>((set) => ({
@@ -477,17 +480,15 @@ const Conditionally = {
 
 export const NodesProvider = ({ children }: React.PropsWithChildren) => {
   const registry = useRegistry();
-  const processedLast = Validation.useProcessedLastRef();
 
   return (
-    <Store.Provider
-      registry={registry}
-      validationsProcessedLast={processedLast.current}
-    >
+    <Store.Provider registry={registry}>
       <ProvideGlobalContext registry={registry}>
         <GeneratorStagesEffects />
         <GeneratorValidationProvider>
-          <LayoutSetGenerator />
+          <GlobalGeneratorDataSourcesProvider>
+            <LayoutSetGenerator />
+          </GlobalGeneratorDataSourcesProvider>
         </GeneratorValidationProvider>
         <MarkAsReady />
         {window.Cypress && <UpdateAttachmentsForCypress />}

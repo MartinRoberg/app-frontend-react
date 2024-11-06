@@ -7,7 +7,7 @@ import { getInitialMaskFromNodeItem } from 'src/features/validation/utils';
 import { NodesStateQueue } from 'src/utils/layout/generator/CommitQueue';
 import { GeneratorInternal } from 'src/utils/layout/generator/GeneratorContext';
 import { GeneratorCondition, StageFormValidation } from 'src/utils/layout/generator/GeneratorStages';
-import { NodesInternal } from 'src/utils/layout/NodesContext';
+import { type NodePicker, NodesInternal } from 'src/utils/layout/NodesContext';
 import type { AnyValidation, AttachmentValidation } from 'src/features/validation/index';
 import type { CompCategory } from 'src/layout/common';
 import type { TypesFromCategory } from 'src/layout/layout';
@@ -30,11 +30,12 @@ function StoreValidationsInNodeWorker() {
   const item = GeneratorInternal.useIntermediateItem()!;
   const node = GeneratorInternal.useParent() as Node;
   const shouldValidate = !('renderAsSummary' in item && item.renderAsSummary);
+  const nodeDataSelector = NodesInternal.useNodeDataSelector();
 
   const { validations: freshValidations, processedLast } = useNodeValidation(node, shouldValidate);
-  const validations = useUpdatedValidations(freshValidations, node);
+  const validations = nodeDataSelector(getUpdatedValidations(freshValidations, node), [node]);
 
-  const shouldSetValidations = NodesInternal.useNodeData(node, (data) => !deepEqual(data.validations, validations));
+  const shouldSetValidations = nodeDataSelector((picker) => !deepEqual(picker(node)?.validations, validations), [node]);
   NodesStateQueue.useSetNodeProp(
     { node, prop: 'validations', value: validations },
     shouldSetValidations && shouldValidate,
@@ -42,23 +43,29 @@ function StoreValidationsInNodeWorker() {
 
   // Reduce visibility as validations are fixed
   const initialVisibility = getInitialMaskFromNodeItem(item);
-  const visibilityToSet = NodesInternal.useNodeData(node, (data) => {
-    const currentValidationMask = validations.reduce((mask, { category }) => mask | category, 0);
-    const newVisibilityMask = currentValidationMask & data.validationVisibility;
-    if ((newVisibilityMask | initialVisibility) !== data.validationVisibility) {
-      return newVisibilityMask | initialVisibility;
-    }
-    return undefined;
-  });
+  const visibilityToSet = nodeDataSelector(
+    (picker) => {
+      const data = picker(node);
+      if (!data) {
+        return;
+      }
+      const currentValidationMask = validations.reduce((mask, { category }) => mask | category, 0);
+      const newVisibilityMask = currentValidationMask & data.validationVisibility;
+      if ((newVisibilityMask | initialVisibility) !== data.validationVisibility) {
+        return newVisibilityMask | initialVisibility;
+      }
+    },
+    [node],
+  );
 
   NodesStateQueue.useSetNodeProp(
     { node, prop: 'validationVisibility', value: visibilityToSet },
     visibilityToSet !== undefined,
   );
 
-  const shouldSetProcessedLast = NodesInternal.useNodeData(
-    node,
-    (data) => data.validationsProcessedLast !== processedLast,
+  const shouldSetProcessedLast = nodeDataSelector(
+    (picker) => picker(node)?.validationsProcessedLast !== processedLast,
+    [node],
   );
   NodesStateQueue.useSetNodeProp(
     { node, prop: 'validationsProcessedLast', value: processedLast, force: true },
@@ -68,9 +75,10 @@ function StoreValidationsInNodeWorker() {
   return null;
 }
 
-function useUpdatedValidations(validations: AnyValidation[], node: Node) {
-  return NodesInternal.useNodeData(node, (data) => {
-    if (!data.validations) {
+function getUpdatedValidations(validations: AnyValidation[], node: Node) {
+  return (picker: NodePicker) => {
+    const data = picker(node);
+    if (!data?.validations) {
       return validations;
     }
 
@@ -89,5 +97,5 @@ function useUpdatedValidations(validations: AnyValidation[], node: Node) {
     }
 
     return copy;
-  });
+  };
 }

@@ -8,22 +8,45 @@ import dot from 'dot-object';
 
 import { Button } from 'src/app-components/Button/Button';
 import { Caption } from 'src/components/form/caption/Caption';
+import { ContextNotProvided } from 'src/core/contexts/context';
+import { useApplicationMetadata } from 'src/features/applicationMetadata/ApplicationMetadataProvider';
+import { useApplicationSettings } from 'src/features/applicationSettings/ApplicationSettingsProvider';
+import { ExprVal } from 'src/features/expressions/types';
+import { useExternalApis } from 'src/features/externalApi/useExternalApi';
 import { useDataTypeFromLayoutSet } from 'src/features/form/layout/LayoutsContext';
+import { useLayoutSets } from 'src/features/form/layoutSets/LayoutSetsProvider';
 import { useFormDataQuery } from 'src/features/formData/useFormDataQuery';
-import { useStrictDataElements, useStrictInstanceId } from 'src/features/instance/InstanceContext';
+import {
+  useLaxInstanceDataSources,
+  useStrictDataElements,
+  useStrictInstanceId,
+} from 'src/features/instance/InstanceContext';
+import { useLaxProcessData } from 'src/features/instance/ProcessContext';
 import { Lang } from 'src/features/language/Lang';
-import { useLanguage } from 'src/features/language/useLanguage';
+import { useCurrentLanguage } from 'src/features/language/LanguageProvider';
+import { useInnerLanguageWithForcedNodeSelector, useLanguage } from 'src/features/language/useLanguage';
 import { useIsSubformPage, useNavigate } from 'src/features/routing/AppRoutingContext';
 import { useAddEntryMutation, useDeleteEntryMutation } from 'src/features/subformData/useSubformMutations';
 import { isSubformValidation } from 'src/features/validation';
 import { useComponentValidationsForNode } from 'src/features/validation/selectors/componentValidationsForNode';
+import { useShallowObjectMemo } from 'src/hooks/useShallowObjectMemo';
 import { ComponentStructureWrapper } from 'src/layout/ComponentStructureWrapper';
 import classes from 'src/layout/Subform/SubformComponent.module.css';
+import { useEvalExpression } from 'src/utils/layout/generator/useEvalExpression';
 import { useNodeItem } from 'src/utils/layout/useNodeItem';
 import { getStatefulDataModelUrl } from 'src/utils/urls/appUrlHelper';
+import type { AttachmentsSelector } from 'src/features/attachments/AttachmentsStorePlugin';
+import type { ExprValToActualOrExpr } from 'src/features/expressions/types';
+import type { NodeOptionsSelector } from 'src/features/options/OptionsStorePlugin';
 import type { PropsFromGenericComponent } from 'src/layout';
+import type { IDataModelReference } from 'src/layout/common.generated';
 import type { IData } from 'src/types/shared';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
+import type { Hidden, NodeDataSelector } from 'src/utils/layout/NodesContext';
+import type { DataModelTransposeSelector } from 'src/utils/layout/useDataModelBindingTranspose';
+import type { ExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
+import type { NodeFormDataSelector } from 'src/utils/layout/useNodeItem';
+import type { NodeTraversalSelector } from 'src/utils/layout/useNodeTraversal';
 
 export function SubformComponent({ node }: PropsFromGenericComponent<'Subform'>): React.JSX.Element | null {
   const {
@@ -185,7 +208,7 @@ function SubformTableRow({
   deleteEntryCallback: (dataElement: IData) => void;
 }) {
   const id = dataElement.id;
-  const { tableColumns = [] } = useNodeItem(node);
+  const { tableColumns = [], layoutSet } = useNodeItem(node);
   const instanceId = useStrictInstanceId();
   const url = getStatefulDataModelUrl(instanceId, id, true);
   const { isFetching, data, error, failureCount } = useFormDataQuery(url);
@@ -239,11 +262,23 @@ function SubformTableRow({
       {tableColumns.length ? (
         tableColumns.map((entry, index) => (
           <Table.Cell key={`subform-cell-${id}-${index}`}>
-            <DataQueryWithDefaultValue
-              data={data}
-              query={entry.cellContent.query}
-              defaultValue={entry.cellContent.default}
-            />
+            {entry.cellContent.query ? (
+              <DataQueryWithDefaultValue
+                data={data}
+                query={entry.cellContent.query}
+                defaultValue={entry.cellContent.default}
+              />
+            ) : entry.cellContent.expr ? (
+              <ExpressionData
+                data={data}
+                layoutSet={layoutSet}
+                node={node}
+                expr={entry.cellContent.expr}
+                defaultValue={entry.cellContent.default}
+              />
+            ) : (
+              ''
+            )}
           </Table.Cell>
         ))
       ) : (
@@ -312,4 +347,92 @@ export function DataQueryWithDefaultValue(props: DataQueryParams) {
   }
 
   return <>{String(content)}</>;
+}
+
+export interface ExpressionDataProps {
+  data: unknown;
+  layoutSet: string;
+  node: LayoutNode<'Subform'>;
+  expr: ExprValToActualOrExpr<ExprVal.String>;
+  defaultValue?: string;
+}
+
+export function ExpressionData({ data, layoutSet, node, expr, defaultValue }: ExpressionDataProps) {
+  const { langAsString } = useLanguage();
+
+  const dataType = useLayoutSets().sets.find(({ id }) => id === layoutSet)?.dataType ?? null;
+  const dataSources = useExpressionDataSourcesForSubform(dataType, data);
+
+  // To avoid trying to find the transposed data model binding wrt. the node, we have to run the expression in the context of the layout page instead
+  const page = node.page;
+  let content = useEvalExpression(ExprVal.String, page, expr, '', dataSources);
+
+  if (!content && defaultValue != undefined) {
+    content = langAsString(defaultValue);
+  }
+
+  if (typeof content === 'object' || content === undefined) {
+    return null;
+  }
+
+  return <>{String(content)}</>;
+}
+
+function notImplementedSelector(..._args: unknown[]): unknown {
+  throw 'Expression function `component` and `displayValue` is not implemented for Subform';
+}
+function notImplementedLaxSelector(..._args: unknown[]): typeof ContextNotProvided {
+  return ContextNotProvided;
+}
+
+function useExpressionDataSourcesForSubform(dataType: string | null, formData: unknown): ExpressionDataSources {
+  const attachmentsSelector = notImplementedSelector as AttachmentsSelector;
+  const optionsSelector = notImplementedSelector as NodeOptionsSelector;
+  const nodeDataSelector = notImplementedSelector as NodeDataSelector;
+  const isHiddenSelector = notImplementedSelector as ReturnType<typeof Hidden.useIsHiddenSelector>;
+  const nodeTraversal = notImplementedSelector as NodeTraversalSelector;
+  const transposeSelector = notImplementedSelector as DataModelTransposeSelector;
+  const nodeFormDataSelector = notImplementedSelector as NodeFormDataSelector;
+
+  const formDataSelector = (reference: IDataModelReference) => {
+    // TODO: Should we allow selecting from data types in the main form as well?
+    if (reference.dataType !== dataType) {
+      return null;
+    }
+    return dot.pick(reference.field, formData);
+  };
+
+  const dataModelNames = dataType ? [dataType] : [];
+
+  const process = useLaxProcessData();
+  const applicationSettings = useApplicationSettings();
+  const currentLanguage = useCurrentLanguage();
+
+  const instanceDataSources = useLaxInstanceDataSources();
+  const externalApis = useExternalApis(useApplicationMetadata().externalApiIds ?? []);
+  const langToolsSelector = useInnerLanguageWithForcedNodeSelector(
+    dataType ?? undefined,
+    dataModelNames,
+    formDataSelector,
+    notImplementedLaxSelector as NodeDataSelector,
+  );
+
+  return useShallowObjectMemo({
+    formDataSelector,
+    attachmentsSelector,
+    optionsSelector,
+    nodeDataSelector,
+    process,
+    applicationSettings,
+    instanceDataSources,
+    langToolsSelector,
+    currentLanguage,
+    isHiddenSelector,
+    nodeFormDataSelector,
+    nodeTraversal,
+    transposeSelector,
+    defaultDataType: dataType,
+    externalApis,
+    dataModelNames,
+  });
 }

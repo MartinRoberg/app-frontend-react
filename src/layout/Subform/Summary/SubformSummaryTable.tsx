@@ -74,11 +74,13 @@ function SubformTableRow({
       {tableColumns.length ? (
         tableColumns.map((entry, index) => (
           <Table.Cell key={`subform-cell-${id}-${index}`}>
-            <DataQueryWithDefaultValue
-              data={data}
-              query={entry.cellContent.query}
-              defaultValue={entry.cellContent.default}
-            />
+            {entry.cellContent.query && (
+              <DataQueryWithDefaultValue
+                data={data}
+                query={entry.cellContent.query}
+                defaultValue={entry.cellContent.default}
+              />
+            )}
           </Table.Cell>
         ))
       ) : (

@@ -5,7 +5,6 @@ import { DataModels } from 'src/features/datamodel/DataModelsProvider';
 import { useDevToolsStore } from 'src/features/devtools/data/DevToolsStore';
 import { useExternalApis } from 'src/features/externalApi/useExternalApi';
 import { useLayoutSets } from 'src/features/form/layoutSets/LayoutSetsProvider';
-import { useCurrentLayoutSet } from 'src/features/form/layoutSets/useCurrentLayoutSet';
 import { FD } from 'src/features/formData/FormDataWrite';
 import { useLaxDataElementsSelectorProps, useLaxInstanceDataSources } from 'src/features/instance/InstanceContext';
 import { useLaxProcessData } from 'src/features/instance/ProcessContext';
@@ -24,7 +23,6 @@ import type { ExpressionDataSources } from 'src/utils/layout/useExpressionDataSo
 
 const { Provider, hooks } = createHookContext({
   useLaxInstanceDataSources: () => useLaxInstanceDataSources(),
-  useCurrentLayoutSet: () => useCurrentLayoutSet(),
   useDefaultDataType: () => DataModels.useDefaultDataType(),
   useReadableDataTypes: () => DataModels.useReadableDataTypes(),
   useExternalApis: () => useExternalApis(useApplicationMetadata().externalApiIds ?? []),
@@ -46,7 +44,6 @@ export const GeneratorData = {
 function useExpressionDataSources(): ExpressionDataSources {
   const [
     formDataSelector,
-    formDataRowsSelector,
     attachmentsSelector,
     optionsSelector,
     nodeDataSelector,
@@ -54,7 +51,6 @@ function useExpressionDataSources(): ExpressionDataSources {
     isHiddenSelector,
   ] = useMultipleDelayedSelectors(
     FD.useDebouncedSelectorProps(),
-    FD.useDebouncedRowsSelectorProps(),
     NodesInternal.useAttachmentsSelectorProps(),
     NodesInternal.useNodeOptionsSelectorProps(),
     NodesInternal.useNodeDataSelectorProps(),
@@ -67,7 +63,7 @@ function useExpressionDataSources(): ExpressionDataSources {
   const currentLanguage = useCurrentLanguage();
 
   const instanceDataSources = hooks.useLaxInstanceDataSources();
-  const currentLayoutSet = hooks.useCurrentLayoutSet() ?? null;
+  const defaultDataType = hooks.useDefaultDataType() ?? null;
   const dataModelNames = hooks.useReadableDataTypes();
   const externalApis = hooks.useExternalApis();
   const nodeTraversal = useInnerNodeTraversalSelector(useNodes(), dataSelectorForTraversal);
@@ -82,7 +78,6 @@ function useExpressionDataSources(): ExpressionDataSources {
 
   return useShallowObjectMemo({
     formDataSelector,
-    formDataRowsSelector,
     attachmentsSelector,
     optionsSelector,
     nodeDataSelector,
@@ -95,7 +90,7 @@ function useExpressionDataSources(): ExpressionDataSources {
     nodeFormDataSelector,
     nodeTraversal,
     transposeSelector,
-    currentLayoutSet,
+    defaultDataType,
     externalApis,
     dataModelNames,
   });

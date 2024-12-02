@@ -1,4 +1,5 @@
 import { CG } from 'src/codegen/CG';
+import { ExprVal } from 'src/features/expressions/types';
 import { CompCategory } from 'src/layout/common';
 
 export const SUBFORM_SUMMARY_OVERRIDE_PROPS = new CG.obj(
@@ -47,6 +48,7 @@ export const Config = new CG.component({
           new CG.prop(
             'headerContent',
             new CG.str()
+              .optional()
               .setTitle('The column header value')
               .setDescription(
                 'The header value to display. May contain a text resource bindings, but no data model lookups.',
@@ -58,9 +60,11 @@ export const Config = new CG.component({
               new CG.prop(
                 'query',
                 new CG.str()
+                  .optional()
                   .setTitle('The cell value via data model lookup')
                   .setDescription('The cell value to display from a data model lookup (dot notation).'),
               ),
+              new CG.prop('expr', new CG.expr(ExprVal.String).optional()),
               new CG.prop(
                 'default',
                 new CG.str()
@@ -74,6 +78,7 @@ export const Config = new CG.component({
       ),
     ),
   )
+  .addProperty(new CG.prop('name', new CG.expr(ExprVal.String).optional()))
   .addProperty(
     new CG.prop(
       'summaryDelimiter',

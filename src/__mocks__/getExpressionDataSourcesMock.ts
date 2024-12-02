@@ -8,7 +8,6 @@ import type { NodeFormDataSelector } from 'src/utils/layout/useNodeItem';
 export function getExpressionDataSourcesMock(): ExpressionDataSources {
   return {
     formDataSelector: () => null,
-    formDataRowsSelector: () => [],
     attachmentsSelector: () => {
       throw new Error('Not implemented: attachmentsSelector()');
     },
@@ -18,7 +17,7 @@ export function getExpressionDataSourcesMock(): ExpressionDataSources {
     instanceDataSources: {} as IInstanceDataSources | null,
     langToolsSelector: () => staticUseLanguageForTests(),
     currentLanguage: 'nb',
-    currentLayoutSet: { id: 'form', dataType: 'data', tasks: ['task1'] },
+    defaultDataType: 'data',
     isHiddenSelector: () => false,
     nodeFormDataSelector: (() => ({})) as unknown as NodeFormDataSelector,
     nodeDataSelector: () => {

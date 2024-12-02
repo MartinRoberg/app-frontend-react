@@ -66,14 +66,18 @@ function SubformSummaryRow({ dataElement, node }: { dataElement: IData; node: La
     return <Lang id='form_filler.error_fetch_subform' />;
   }
 
-  const content: (JSX.Element | string)[] = tableColumns.map((entry, i) => (
-    <DataQueryWithDefaultValue
-      key={i}
-      data={data}
-      query={entry.cellContent.query}
-      defaultValue={entry.cellContent.default}
-    />
-  ));
+  const content: (JSX.Element | string)[] = tableColumns.map((entry, i) =>
+    entry.cellContent.query ? (
+      <DataQueryWithDefaultValue
+        key={i}
+        data={data}
+        query={entry.cellContent.query}
+        defaultValue={entry.cellContent.default}
+      />
+    ) : (
+      ''
+    ),
+  );
 
   if (content.length === 0) {
     content.push(id);

@@ -1,5 +1,6 @@
 import { evalExpr } from 'src/features/expressions';
 import { ExprValidation } from 'src/features/expressions/validation';
+import { FD } from 'src/features/formData/FormDataWrite';
 import { useMemoDeepEqual } from 'src/hooks/useStateDeepEqual';
 import { getKeyWithoutIndexIndicators } from 'src/utils/databindings';
 import { transposeDataBinding } from 'src/utils/databindings/DataBinding';
@@ -17,19 +18,20 @@ interface IUseSourceOptionsArgs {
 
 export const useSourceOptions = ({ source, node }: IUseSourceOptionsArgs): IOptionInternal[] | undefined => {
   const dataSources = GeneratorData.useExpressionDataSources();
+  const formDataRowsSelector = FD.useDebouncedRowsSelector();
 
   return useMemoDeepEqual(() => {
     if (!source) {
       return undefined;
     }
 
-    const { formDataRowsSelector, formDataSelector, langToolsSelector } = dataSources;
+    const { formDataSelector, langToolsSelector } = dataSources;
     const output: IOptionInternal[] = [];
     const langTools = langToolsSelector(node);
     const { group, value, label, helpText, description, dataType } = source;
     const cleanValue = getKeyWithoutIndexIndicators(value);
     const cleanGroup = getKeyWithoutIndexIndicators(group);
-    const groupDataType = dataType ?? dataSources.currentLayoutSet?.dataType;
+    const groupDataType = dataType ?? dataSources.defaultDataType;
     if (!groupDataType) {
       return output;
     }
@@ -83,7 +85,7 @@ export const useSourceOptions = ({ source, node }: IUseSourceOptionsArgs): IOpti
     }
 
     return output;
-  }, [source, node, dataSources]);
+  }, [source, dataSources, node, formDataRowsSelector]);
 };
 
 function resolveText(

@@ -139,7 +139,8 @@
       "anyOf": [
         { "type": "number", "title": "Numeric constant" },
         { "$ref": "#/definitions/func-stringLength" },
-        { "$ref": "#/definitions/func-stringIndexOf" }
+        { "$ref": "#/definitions/func-stringIndexOf" },
+        { "$ref": "#/definitions/func-countDataElements" }
       ]
     },
     "func-if": {
@@ -187,6 +188,16 @@
       "items": [
         { "const":  "dataModel" },
         { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-countDataElements": {
+      "title": "Count data elements function",
+      "description": "This function will count the number of data elements of the specified data type in the current instance",
+      "type": "array",
+      "items": [
+        { "const":  "countDataElements" },
         { "$ref": "#/definitions/string" }
       ],
       "additionalItems": false

@@ -3,6 +3,7 @@ import escapeStringRegexp from 'escape-string-regexp';
 import type { Mutable } from 'utility-types';
 
 import { isDate } from 'src/app-components/Datepicker/utils/dateHelpers';
+import { ContextNotProvided } from 'src/core/contexts/context';
 import { ExprRuntimeError, NodeNotFound, NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import { ExprVal } from 'src/features/expressions/types';
 import { addError } from 'src/features/expressions/validation';
@@ -329,6 +330,26 @@ export const ExprFunctions = {
     args: [ExprVal.String, ExprVal.String] as const,
     minArguments: 1,
     returns: ExprVal.Any,
+  }),
+  countDataElements: defineFunc({
+    impl(dataType): number {
+      if (dataType === null) {
+        throw new ExprRuntimeError(this.expr, this.path, `Cannot count the number of data elements for null`);
+      }
+
+      const length = this.dataSources.dataElementSelector(
+        (elements) => elements.filter((e) => e.dataType === dataType).length,
+        [dataType],
+      );
+
+      if (length === ContextNotProvided) {
+        return 0; // Stateless never has any data elements
+      }
+
+      return length;
+    },
+    args: [ExprVal.String] as const,
+    returns: ExprVal.Number,
   }),
   hasRole: defineFunc({
     impl(roleName): boolean | null {

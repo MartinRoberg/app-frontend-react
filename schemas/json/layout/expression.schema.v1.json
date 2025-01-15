@@ -80,7 +80,12 @@
         { "$ref": "#/definitions/func-upperCase" },
         { "$ref": "#/definitions/func-_experimentalSelectAndMap" },
         { "$ref": "#/definitions/func-argv"},
-        { "$ref": "#/definitions/func-value"}
+        { "$ref": "#/definitions/func-value"},
+        { "$ref": "#/definitions/func-stringReplace" },
+        { "$ref": "#/definitions/func-stringSlice" },
+        { "$ref": "#/definitions/func-upperCaseFirst" },
+        { "$ref": "#/definitions/func-lowerCaseFirst" }
+
       ]
     },
     "boolean": {
@@ -112,7 +117,12 @@
         { "$ref": "#/definitions/func-endsWith" },
         { "$ref": "#/definitions/func-startsWith" },
         { "$ref": "#/definitions/func-commaContains" },
-        { "$ref": "#/definitions/func-hasRole" }
+        { "$ref": "#/definitions/func-hasRole" },
+        { "$ref": "#/definitions/func-dateIsBefore" },
+        { "$ref": "#/definitions/func-dateIsBeforeEq" },
+        { "$ref": "#/definitions/func-dateIsAfter" },
+        { "$ref": "#/definitions/func-dateIsAfterEq" },
+        { "$ref": "#/definitions/func-dateIsSameDay" }
       ]
     },
     "number": {
@@ -128,7 +138,8 @@
       "title": "Any expression returning a number (strict)",
       "anyOf": [
         { "type": "number", "title": "Numeric constant" },
-        { "$ref": "#/definitions/func-stringLength" }
+        { "$ref": "#/definitions/func-stringLength" },
+        { "$ref": "#/definitions/func-stringIndexOf" }
       ]
     },
     "func-if": {
@@ -357,6 +368,61 @@
       ],
       "additionalItems": false
     },
+    "func-dateIsBefore": {
+      "title": "Date is before function",
+      "description": "This function checks if the first date/time is before the second date/time",
+      "type": "array",
+      "items": [
+        { "const":  "dateIsBefore" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-dateIsBeforeEq": {
+      "title": "Date is before or equals function",
+      "description": "This function checks if the first date/time is before or equals the second date/time",
+      "type": "array",
+      "items": [
+        { "const":  "dateIsBeforeEq" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-dateIsAfter": {
+      "title": "Date is after function",
+      "description": "This function checks if the first date/time is after the second date/time",
+      "type": "array",
+      "items": [
+        { "const":  "dateIsAfter" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-dateIsAfterEq": {
+      "title": "Date is after or equals function",
+      "description": "This function checks if the first date/time is after or equals the second date/time",
+      "type": "array",
+      "items": [
+        { "const":  "dateIsAfterEq" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-dateIsSameDay": {
+      "title": "Date is same day function",
+      "description": "This function checks if the first date/time is on the same day as the second date/time",
+      "type": "array",
+      "items": [
+        { "const":  "dateIsSameDay" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
     "func-linkToComponent": {
       "title": "Link to component function",
       "description": "This function returns a link to a specific component in a form",
@@ -453,12 +519,47 @@
       ],
       "additionalItems": false
     },
+    "func-stringReplace": {
+      "title": "String replace function",
+      "description": "This function replaces all occurrences of a substring in a string with another string",
+      "type": "array",
+      "items": [
+        { "const":  "stringReplace" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
     "func-stringLength": {
       "title": "String length function",
       "description": "This function returns the length of a string",
       "type": "array",
       "items": [
         { "const":  "stringLength" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-stringSlice": {
+      "title": "String slice function",
+      "description": "This function returns a substring of a string",
+      "type": "array",
+      "items": [
+        { "const":  "stringSlice" },
+        { "$ref": "#/definitions/string" },
+        { "$ref": "#/definitions/number" },
+        { "$ref": "#/definitions/number" }
+      ],
+      "additionalItems": false
+    },
+    "func-stringIndexOf": {
+      "title": "String index of function",
+      "description": "This function returns the index of the first occurrence of a substring in a string",
+      "type": "array",
+      "items": [
+        { "const":  "stringIndexOf" },
+        { "$ref": "#/definitions/string" },
         { "$ref": "#/definitions/string" }
       ],
       "additionalItems": false
@@ -490,6 +591,26 @@
       "type": "array",
       "items": [
         { "const":  "upperCase" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-lowerCaseFirst": {
+      "title": "Lower case first function",
+      "description": "This function converts the first character of a string to lower case",
+      "type": "array",
+      "items": [
+        { "const":  "lowerCaseFirst" },
+        { "$ref": "#/definitions/string" }
+      ],
+      "additionalItems": false
+    },
+    "func-upperCaseFirst": {
+      "title": "Upper case first function",
+      "description": "This function converts the first character of a string to upper case",
+      "type": "array",
+      "items": [
+        { "const":  "upperCaseFirst" },
         { "$ref": "#/definitions/string" }
       ],
       "additionalItems": false

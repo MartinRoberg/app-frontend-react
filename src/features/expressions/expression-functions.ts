@@ -1,4 +1,5 @@
 import dot from 'dot-object';
+import escapeStringRegexp from 'escape-string-regexp';
 import type { Mutable } from 'utility-types';
 
 import { isDate } from 'src/app-components/Datepicker/utils/dateHelpers';
@@ -422,6 +423,31 @@ export const ExprFunctions = {
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.String,
   }),
+  dateIsBefore: defineFunc({
+    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 < d2, false),
+    args: [ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.Boolean,
+  }),
+  dateIsBeforeEq: defineFunc({
+    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 <= d2, false),
+    args: [ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.Boolean,
+  }),
+  dateIsAfter: defineFunc({
+    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 > d2, false),
+    args: [ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.Boolean,
+  }),
+  dateIsAfterEq: defineFunc({
+    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 >= d2, false),
+    args: [ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.Boolean,
+  }),
+  dateIsSameDay: defineFunc({
+    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1.toDateString() === d2.toDateString(), false),
+    args: [ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.Boolean,
+  }),
   round: defineFunc({
     impl(number, decimalPoints) {
       const realNumber = number === null ? 0 : number;
@@ -554,9 +580,41 @@ export const ExprFunctions = {
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
+  stringReplace: defineFunc({
+    impl(string, search, replace) {
+      if (!string || !search || replace === null) {
+        return null;
+      }
+      return string.replace(new RegExp(escapeStringRegexp(search), 'g'), replace);
+    },
+    args: [ExprVal.String, ExprVal.String, ExprVal.String] as const,
+    returns: ExprVal.String,
+  }),
   stringLength: defineFunc({
     impl: (string) => (string === null ? 0 : string.length),
     args: [ExprVal.String] as const,
+    returns: ExprVal.Number,
+  }),
+  stringSlice: defineFunc({
+    impl(string, start, length) {
+      if (!string || start === null || length === null) {
+        return null;
+      }
+
+      return string.substring(start, start + length);
+    },
+    args: [ExprVal.String, ExprVal.Number, ExprVal.Number] as const,
+    returns: ExprVal.String,
+  }),
+  stringIndexOf: defineFunc({
+    impl(string, search) {
+      if (!string || !search) {
+        return null;
+      }
+
+      return string.indexOf(search);
+    },
+    args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Number,
   }),
   commaContains: defineFunc({
@@ -588,6 +646,26 @@ export const ExprFunctions = {
         return null;
       }
       return string.toUpperCase();
+    },
+    args: [ExprVal.String] as const,
+    returns: ExprVal.String,
+  }),
+  upperCaseFirst: defineFunc({
+    impl(string) {
+      if (string === null) {
+        return null;
+      }
+      return string.charAt(0).toUpperCase() + string.slice(1);
+    },
+    args: [ExprVal.String] as const,
+    returns: ExprVal.String,
+  }),
+  lowerCaseFirst: defineFunc({
+    impl(string) {
+      if (string === null) {
+        return null;
+      }
+      return string.charAt(0).toLowerCase() + string.slice(1);
     },
     args: [ExprVal.String] as const,
     returns: ExprVal.String,
@@ -643,4 +721,32 @@ export function ensureNode(
     throw new NodeNotFound(node.getId());
   }
   return node;
+}
+
+function whenValidDates<Out, Default>(
+  date1: string | null,
+  date2: string | null,
+  callback: (d1: Date, d2: Date) => Out,
+  def: Default,
+): Out | Default {
+  if (!date1 || !date2) {
+    return def;
+  }
+
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in both arguments`);
+  }
+
+  if (isNaN(d1.getTime())) {
+    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in first argument`);
+  }
+
+  if (isNaN(d2.getTime())) {
+    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in second argument`);
+  }
+
+  return callback(d1, d2);
 }

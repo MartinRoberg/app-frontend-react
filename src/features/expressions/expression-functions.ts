@@ -2,7 +2,6 @@ import dot from 'dot-object';
 import escapeStringRegexp from 'escape-string-regexp';
 import type { Mutable } from 'utility-types';
 
-import { isDate } from 'src/app-components/Datepicker/utils/dateHelpers';
 import { ContextNotProvided } from 'src/core/contexts/context';
 import { ExprRuntimeError, NodeNotFound, NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import { ExprVal } from 'src/features/expressions/types';
@@ -435,37 +434,48 @@ export const ExprFunctions = {
   formatDate: defineFunc({
     impl(date: string, format: string | null): string | null {
       const selectedLanguage = this.dataSources.currentLanguage;
-      if (!isDate(date)) {
+      const parsed = parseDate(date);
+      if (!parsed) {
         return null;
       }
-      return formatDateLocale(selectedLanguage, new Date(date), format ?? undefined);
+      return formatDateLocale(selectedLanguage, parsed, format ?? undefined);
     },
     minArguments: 1,
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.String,
   }),
   dateIsBefore: defineFunc({
-    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 < d2, false),
+    impl(date1, date2): boolean {
+      return whenValidDates(this, date1, date2, (d1, d2) => d1 < d2, false);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
   dateIsBeforeEq: defineFunc({
-    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 <= d2, false),
+    impl(date1, date2) {
+      return whenValidDates(this, date1, date2, (d1, d2) => d1 <= d2, false);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
   dateIsAfter: defineFunc({
-    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 > d2, false),
+    impl(date1, date2) {
+      return whenValidDates(this, date1, date2, (d1, d2) => d1 > d2, false);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
   dateIsAfterEq: defineFunc({
-    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1 >= d2, false),
+    impl(date1, date2) {
+      return whenValidDates(this, date1, date2, (d1, d2) => d1 >= d2, false);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
   dateIsSameDay: defineFunc({
-    impl: (date1, date2) => whenValidDates(date1, date2, (d1, d2) => d1.toDateString() === d2.toDateString(), false),
+    impl(date1, date2) {
+      return whenValidDates(this, date1, date2, (d1, d2) => d1.toDateString() === d2.toDateString(), false);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
@@ -745,6 +755,7 @@ export function ensureNode(
 }
 
 function whenValidDates<Out, Default>(
+  self: EvaluateExpressionParams,
   date1: string | null,
   date2: string | null,
   callback: (d1: Date, d2: Date) => Out,
@@ -754,20 +765,53 @@ function whenValidDates<Out, Default>(
     return def;
   }
 
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
+  const d1 = parseDate(date1);
+  const d2 = parseDate(date2);
 
-  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
-    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in both arguments`);
+  if (!d1 && !d2) {
+    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in both arguments`);
   }
 
-  if (isNaN(d1.getTime())) {
-    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in first argument`);
+  if (!d1) {
+    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in first argument`);
   }
 
-  if (isNaN(d2.getTime())) {
-    throw new ExprRuntimeError(this.expr, this.path, `Invalid date supplied in second argument`);
+  if (!d2) {
+    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in second argument`);
   }
 
   return callback(d1, d2);
+}
+
+/**
+ * Strict date parser. We don't want to support all the formats that Date.parse() supports, because that
+ * would make it more difficult to implement the same functionality on the backend. For that reason, we
+ * limit ourselves to simple ISO 8601 dates + the format DateTime is serialized to JSON in.
+ *
+ * This list contains a regex pattern for every valid format, along with the indexes
+ * for the year, month, day, hour, minute and second (for where that information is available in the match).
+ */
+const datePatterns = [
+  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, Y: 1, M: 2, D: 3 },
+  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})$/, Y: 1, M: 2, D: 3, h: 4, m: 5 },
+  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})$/, Y: 1, M: 2, D: 3, h: 4, m: 5, s: 6 },
+];
+
+function parseDate(date: string | null): Date | null {
+  if (!date) {
+    return null;
+  }
+  for (const { regex, Y, M, D, h, m, s } of datePatterns) {
+    const match = regex.exec(date);
+    if (match) {
+      const year = parseInt(match[Y], 10);
+      const month = parseInt(match[M], 10) - 1;
+      const day = parseInt(match[D], 10);
+      const hour = h ? parseInt(match[h], 10) : 0;
+      const minute = m ? parseInt(match[m], 10) : 0;
+      const second = s ? parseInt(match[s], 10) : 0;
+      return new Date(year, month, day, hour, minute, second);
+    }
+  }
+  return null;
 }

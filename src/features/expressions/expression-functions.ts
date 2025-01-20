@@ -619,12 +619,30 @@ export const ExprFunctions = {
   }),
   stringSlice: defineFunc({
     impl(string, start, length) {
-      if (!string || start === null || length === null) {
+      if (start === null) {
+        throw new ExprRuntimeError(
+          this.expr,
+          this.path,
+          `Start index cannot be null (if you used an expression like stringIndexOf here, make sure to guard against null)`,
+        );
+      }
+      if (string === null) {
         return null;
+      }
+      if (start < 0) {
+        throw new ExprRuntimeError(this.expr, this.path, `Start index cannot be negative`);
+      }
+      if (length !== null && length < 0) {
+        throw new ExprRuntimeError(this.expr, this.path, `Length cannot be negative`);
+      }
+
+      if (length === null) {
+        return string.substring(start);
       }
 
       return string.substring(start, start + length);
     },
+    minArguments: 2,
     args: [ExprVal.String, ExprVal.Number, ExprVal.Number] as const,
     returns: ExprVal.String,
   }),
@@ -634,7 +652,8 @@ export const ExprFunctions = {
         return null;
       }
 
-      return string.indexOf(search);
+      const idx = string.indexOf(search);
+      return idx === -1 ? null : idx;
     },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Number,

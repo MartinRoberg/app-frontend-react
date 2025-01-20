@@ -266,7 +266,7 @@ describe('Expressions shared function tests', () => {
             valueArguments={valueArguments}
           />
         ),
-        inInstance: !!instance,
+        inInstance: !!instance || !!dataModels,
         queries: {
           fetchLayoutSets: async () => ({
             sets: [{ id: 'layout-set', dataType: 'default', tasks: ['Task_1'] }, getSubFormLayoutSetMock()],

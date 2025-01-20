@@ -135,10 +135,13 @@ function validateFunction(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const def = ExprFunctions[funcName] as FuncDef<any, any>;
-    if (def.validator) {
-      def.validator({ rawArgs, argTypes, ctx, path: pathArgs });
-    } else {
+    const numErrorsBefore = Object.keys(ctx.errors).length;
+    if (def.runNumArgsValidator !== false) {
       validateFunctionArgLength(funcName as ExprFunction, argTypes, ctx, pathArgs);
+    }
+    if (def.validator && Object.keys(ctx.errors).length === numErrorsBefore) {
+      // Skip the custom validator if the argument length is wrong
+      def.validator({ rawArgs, argTypes, ctx, path: pathArgs });
     }
 
     return def.returns;

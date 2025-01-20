@@ -1,0 +1,5 @@
+{
+  "name": "Should fail when given too many arguments",
+  "expression": ["compare", "equals", "equals", "equals", "equals", "equals"],
+  "expectsFailure": "Unexpected argument"
+}

@@ -3,6 +3,7 @@ import escapeStringRegexp from 'escape-string-regexp';
 import type { Mutable } from 'utility-types';
 
 import { ContextNotProvided } from 'src/core/contexts/context';
+import { exprCastValue } from 'src/features/expressions';
 import { ExprRuntimeError, NodeNotFound, NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import { ExprVal } from 'src/features/expressions/types';
 import { addError } from 'src/features/expressions/validation';
@@ -45,6 +46,11 @@ export interface FuncDef<Args extends readonly ExprVal[], Ret extends ExprVal> {
     ctx: ValidationContext;
     path: string[];
   }) => void;
+
+  // Optional: Set this to false if the automatic 'number of arguments validator' should NOT be run for this function.
+  // Defaults to true. The minimum number of arguments will be args.length unless minArguments is set, and the
+  // maximum number of arguments will be args.length unless lastArgSpreads is set.
+  runNumArgsValidator?: boolean;
 }
 
 function defineFunc<Args extends readonly ExprVal[], Ret extends ExprVal>(
@@ -104,12 +110,16 @@ export const ExprFunctions = {
     returns: ExprVal.Any,
   }),
   equals: defineFunc({
-    impl: (arg1, arg2) => arg1 === arg2,
+    impl(arg1, arg2) {
+      return compare(this, 'equals', arg1, arg2);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
   notEquals: defineFunc({
-    impl: (arg1, arg2) => arg1 !== arg2,
+    impl(arg1, arg2) {
+      return !compare(this, 'equals', arg1, arg2);
+    },
     args: [ExprVal.String, ExprVal.String] as const,
     returns: ExprVal.Boolean,
   }),
@@ -119,45 +129,29 @@ export const ExprFunctions = {
     returns: ExprVal.Boolean,
   }),
   greaterThan: defineFunc({
-    impl: (arg1, arg2) => {
-      if (arg1 === null || arg2 === null) {
-        return false;
-      }
-
-      return arg1 > arg2;
+    impl(arg1, arg2) {
+      return compare(this, 'greaterThan', arg1, arg2);
     },
     args: [ExprVal.Number, ExprVal.Number] as const,
     returns: ExprVal.Boolean,
   }),
   greaterThanEq: defineFunc({
-    impl: (arg1, arg2) => {
-      if (arg1 === null || arg2 === null) {
-        return false;
-      }
-
-      return arg1 >= arg2;
+    impl(arg1, arg2) {
+      return compare(this, 'greaterThanEq', arg1, arg2);
     },
     args: [ExprVal.Number, ExprVal.Number] as const,
     returns: ExprVal.Boolean,
   }),
   lessThan: defineFunc({
-    impl: (arg1, arg2) => {
-      if (arg1 === null || arg2 === null) {
-        return false;
-      }
-
-      return arg1 < arg2;
+    impl(arg1, arg2) {
+      return compare(this, 'lessThan', arg1, arg2);
     },
     args: [ExprVal.Number, ExprVal.Number] as const,
     returns: ExprVal.Boolean,
   }),
   lessThanEq: defineFunc({
-    impl: (arg1, arg2) => {
-      if (arg1 === null || arg2 === null) {
-        return false;
-      }
-
-      return arg1 <= arg2;
+    impl(arg1, arg2) {
+      return compare(this, 'lessThanEq', arg1, arg2);
     },
     args: [ExprVal.Number, ExprVal.Number] as const,
     returns: ExprVal.Boolean,
@@ -203,6 +197,7 @@ export const ExprFunctions = {
       }
       addError(ctx, path, 'Expected either 2 arguments (if) or 4 (if + else), got %s', `${rawArgs.length}`);
     },
+    runNumArgsValidator: false,
     args: [ExprVal.Boolean, ExprVal.Any, ExprVal.String, ExprVal.Any],
     returns: ExprVal.Any,
   }),
@@ -432,52 +427,40 @@ export const ExprFunctions = {
     returns: ExprVal.String,
   }),
   formatDate: defineFunc({
-    impl(date: string, format: string | null): string | null {
-      const selectedLanguage = this.dataSources.currentLanguage;
-      const parsed = parseDate(date);
-      if (!parsed) {
-        return null;
-      }
-      return formatDateLocale(selectedLanguage, parsed, format ?? undefined);
+    impl(date, format) {
+      return date ? formatDateLocale(this.dataSources.currentLanguage, date, format ?? undefined) : null;
     },
     minArguments: 1,
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [ExprVal.Date, ExprVal.String] as const,
     returns: ExprVal.String,
   }),
-  dateIsBefore: defineFunc({
-    impl(date1, date2): boolean {
-      return whenValidDates(this, date1, date2, (d1, d2) => d1 < d2, false);
+  compare: defineFunc({
+    impl(arg1, arg2, arg3, arg4) {
+      return arg2 === 'not'
+        ? !compare(this, arg3 as CompareOperator, arg1, arg4, 0, 3)
+        : compare(this, arg2 as CompareOperator, arg1, arg3, 0, 2);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    minArguments: 3,
+    args: [ExprVal.Any, ExprVal.Any, ExprVal.Any, ExprVal.Any] as const,
     returns: ExprVal.Boolean,
-  }),
-  dateIsBeforeEq: defineFunc({
-    impl(date1, date2) {
-      return whenValidDates(this, date1, date2, (d1, d2) => d1 <= d2, false);
+    validator({ rawArgs, ctx, path }) {
+      if (rawArgs.length === 4 && rawArgs[1] !== 'not') {
+        addError(ctx, [...path, '[1]'], 'Second argument must be "not" when providing 4 arguments in total');
+        return;
+      }
+
+      const opIdx = rawArgs.length === 4 ? 2 : 1;
+      const op = rawArgs[opIdx];
+      if (!(typeof op === 'string')) {
+        addError(ctx, [...path, `[${opIdx + 1}]`], 'Invalid operator (it cannot be an expression or null)');
+        return;
+      }
+      const validOperators = Object.keys(CompareOperators);
+      if (!validOperators.includes(op)) {
+        const validList = validOperators.map((o) => `"${o}"`).join(', ');
+        addError(ctx, [...path, `[${opIdx + 1}]`], 'Invalid operator "%s", valid operators are %s', op, validList);
+      }
     },
-    args: [ExprVal.String, ExprVal.String] as const,
-    returns: ExprVal.Boolean,
-  }),
-  dateIsAfter: defineFunc({
-    impl(date1, date2) {
-      return whenValidDates(this, date1, date2, (d1, d2) => d1 > d2, false);
-    },
-    args: [ExprVal.String, ExprVal.String] as const,
-    returns: ExprVal.Boolean,
-  }),
-  dateIsAfterEq: defineFunc({
-    impl(date1, date2) {
-      return whenValidDates(this, date1, date2, (d1, d2) => d1 >= d2, false);
-    },
-    args: [ExprVal.String, ExprVal.String] as const,
-    returns: ExprVal.Boolean,
-  }),
-  dateIsSameDay: defineFunc({
-    impl(date1, date2) {
-      return whenValidDates(this, date1, date2, (d1, d2) => d1.toDateString() === d2.toDateString(), false);
-    },
-    args: [ExprVal.String, ExprVal.String] as const,
-    returns: ExprVal.Boolean,
   }),
   round: defineFunc({
     impl(number, decimalPoints) {
@@ -754,64 +737,117 @@ export function ensureNode(
   return node;
 }
 
-function whenValidDates<Out, Default>(
-  self: EvaluateExpressionParams,
-  date1: string | null,
-  date2: string | null,
-  callback: (d1: Date, d2: Date) => Out,
-  def: Default,
-): Out | Default {
-  if (!date1 || !date2) {
-    return def;
-  }
+/**
+ * Allows you to cast an argument to a stricter type late during execution of an expression function, as opposed to
+ * before the function runs (as arguments are processed on the way in). This is useful in functions such as
+ * 'compare', where the operator will determine the type of the arguments, and cast them accordingly.
+ */
+function lateCastArg<T extends ExprVal>(
+  context: EvaluateExpressionParams,
+  arg: unknown,
+  argIndex: number,
+  type: T,
+): ExprValToActual<T> | null {
+  const actualIndex = argIndex + 1; // Adding 1 because the function name is at index 0
+  const newContext = { ...context, path: [...context.path, `[${actualIndex}]`] };
+  return exprCastValue(arg, type, newContext);
+}
 
-  const d1 = parseDate(date1);
-  const d2 = parseDate(date2);
+type CompareOpArg<T extends ExprVal, BothReq extends boolean> = BothReq extends true
+  ? ExprValToActual<T>
+  : ExprValToActual<T> | null;
+type CompareOpImplementation<T extends ExprVal, BothReq extends boolean> = (
+  this: EvaluateExpressionParams,
+  a: CompareOpArg<T, BothReq>,
+  b: CompareOpArg<T, BothReq>,
+) => boolean;
 
-  if (!d1 && !d2) {
-    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in both arguments`);
-  }
+export interface CompareOperatorDef<T extends ExprVal, BothReq extends boolean> {
+  bothArgsMustBeValid: BothReq;
+  argType: T;
+  impl: CompareOpImplementation<T, BothReq>;
+}
 
-  if (!d1) {
-    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in first argument`);
-  }
-
-  if (!d2) {
-    throw new ExprRuntimeError(self.expr, self.path, `Invalid date supplied in second argument`);
-  }
-
-  return callback(d1, d2);
+function defineCompareOp<T extends ExprVal, BothReq extends boolean>(
+  def: CompareOperatorDef<T, BothReq>,
+): CompareOperatorDef<T, BothReq> {
+  return def;
 }
 
 /**
- * Strict date parser. We don't want to support all the formats that Date.parse() supports, because that
- * would make it more difficult to implement the same functionality on the backend. For that reason, we
- * limit ourselves to simple ISO 8601 dates + the format DateTime is serialized to JSON in.
- *
- * This list contains a regex pattern for every valid format, along with the indexes
- * for the year, month, day, hour, minute and second (for where that information is available in the match).
+ * All the comparison operators available to execute inside the 'compare' function. This list of operators
+ * have the following behaviors:
  */
-const datePatterns = [
-  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, Y: 1, M: 2, D: 3 },
-  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})$/, Y: 1, M: 2, D: 3, h: 4, m: 5 },
-  { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})$/, Y: 1, M: 2, D: 3, h: 4, m: 5, s: 6 },
-];
+const CompareOperators = {
+  equals: defineCompareOp({
+    bothArgsMustBeValid: false,
+    argType: ExprVal.String,
+    impl: (a, b) => a === b,
+  }),
+  greaterThan: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Number,
+    impl: (a, b) => a > b,
+  }),
+  greaterThanEq: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Number,
+    impl: (a: number, b: number) => a >= b,
+  }),
+  lessThan: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Number,
+    impl: (a: number, b: number) => a < b,
+  }),
+  lessThanEq: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Number,
+    impl: (a: number, b: number) => a <= b,
+  }),
+  isBefore: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Date,
+    impl: (a, b) => a < b,
+  }),
+  isBeforeEq: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Date,
+    impl: (a, b) => a <= b,
+  }),
+  isAfter: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Date,
+    impl: (a, b) => a > b,
+  }),
+  isAfterEq: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Date,
+    impl: (a, b) => a >= b,
+  }),
+  isSameDay: defineCompareOp({
+    bothArgsMustBeValid: true,
+    argType: ExprVal.Date,
+    impl: (a, b) => a.toDateString() === b.toDateString(),
+  }),
+} as const;
 
-function parseDate(date: string | null): Date | null {
-  if (!date) {
-    return null;
+type CompareOperator = keyof typeof CompareOperators;
+
+function compare(
+  ctx: EvaluateExpressionParams,
+  operator: CompareOperator,
+  arg1: unknown,
+  arg2: unknown,
+  idxArg1 = 1,
+  idxArg2 = 2,
+): boolean {
+  const def = CompareOperators[operator];
+  const a = lateCastArg(ctx, arg1, idxArg1, def.argType);
+  const b = lateCastArg(ctx, arg2, idxArg2, def.argType);
+
+  if (def.bothArgsMustBeValid && (a === null || b === null)) {
+    return false;
   }
-  for (const { regex, Y, M, D, h, m, s } of datePatterns) {
-    const match = regex.exec(date);
-    if (match) {
-      const year = parseInt(match[Y], 10);
-      const month = parseInt(match[M], 10) - 1;
-      const day = parseInt(match[D], 10);
-      const hour = h ? parseInt(match[h], 10) : 0;
-      const minute = m ? parseInt(match[m], 10) : 0;
-      const second = s ? parseInt(match[s], 10) : 0;
-      return new Date(year, month, day, hour, minute, second);
-    }
-  }
-  return null;
+
+  return def.impl.call(ctx, a, b);
 }

@@ -56,6 +56,14 @@ export interface FuncDef<Args extends readonly ExprVal[], Ret extends ExprVal> {
 function defineFunc<Args extends readonly ExprVal[], Ret extends ExprVal>(
   def: FuncDef<Args, Ret>,
 ): FuncDef<Mutable<Args>, Ret> {
+  if (def.returns === ExprVal.Date) {
+    throw new Error(
+      'Date is not a valid return type for an expression function. It is only possible to receive a Date as ' +
+        'an argument, and if you need to return a Date, you should return it as a string (formatted in a way ' +
+        'that lets the date parser parse it).',
+    );
+  }
+
   return def;
 }
 

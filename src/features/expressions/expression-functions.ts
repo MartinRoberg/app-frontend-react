@@ -69,7 +69,7 @@ export const ExprFunctions = {
         throw new ExprRuntimeError(this.expr, this.path, 'No positional arguments available');
       }
 
-      if (typeof idx !== 'number' || idx < 0 || idx >= this.positionalArguments.length) {
+      if (idx === null || idx < 0 || idx >= this.positionalArguments.length) {
         throw new ExprRuntimeError(this.expr, this.path, 'Invalid argv index');
       }
 
@@ -85,8 +85,8 @@ export const ExprFunctions = {
         throw new ExprRuntimeError(this.expr, this.path, 'No value arguments available');
       }
 
-      const realKey = key ?? config.defaultKey;
-      if (!realKey || typeof realKey !== 'string') {
+      const realKey = (key ?? config.defaultKey) as string | null;
+      if (!realKey) {
         throw new ExprRuntimeError(
           this.expr,
           this.path,
@@ -347,10 +347,7 @@ export const ExprFunctions = {
   }),
   hasRole: defineFunc({
     impl(roleName): boolean | null {
-      if (typeof roleName !== 'string') {
-        throw new ExprRuntimeError(this.expr, this.path, `Expected string argument.`);
-      }
-      if (!this.dataSources.roles) {
+      if (!this.dataSources.roles || !roleName) {
         return false;
       }
       return this.dataSources.roles.data?.map((role) => role.value).includes(roleName) ?? null;
@@ -360,8 +357,11 @@ export const ExprFunctions = {
   }),
   externalApi: defineFunc({
     impl(externalApiId, path): string | null {
-      if (typeof externalApiId !== 'string' || typeof path !== 'string') {
-        throw new ExprRuntimeError(this.expr, this.path, `Expected string arguments`);
+      if (externalApiId === null) {
+        throw new ExprRuntimeError(this.expr, this.path, `Expected an external API id`);
+      }
+      if (!path) {
+        return null;
       }
 
       const externalApiData: unknown = this.dataSources.externalApis.data[externalApiId];
@@ -378,11 +378,6 @@ export const ExprFunctions = {
       return String(res);
     },
     args: [ExprVal.String, ExprVal.String] as const,
-    validator: ({ rawArgs, ctx, path }) => {
-      if (rawArgs.length !== 2) {
-        addError(ctx, path, 'Expected exactly 2 arguments, got %s', `${rawArgs.length}`);
-      }
-    },
     returns: ExprVal.String,
   }),
   displayValue: defineFunc({

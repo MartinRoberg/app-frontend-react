@@ -85,7 +85,6 @@
         { "$ref": "#/definitions/func-stringSlice" },
         { "$ref": "#/definitions/func-upperCaseFirst" },
         { "$ref": "#/definitions/func-lowerCaseFirst" }
-
       ]
     },
     "boolean": {
@@ -118,11 +117,8 @@
         { "$ref": "#/definitions/func-startsWith" },
         { "$ref": "#/definitions/func-commaContains" },
         { "$ref": "#/definitions/func-hasRole" },
-        { "$ref": "#/definitions/func-dateIsBefore" },
-        { "$ref": "#/definitions/func-dateIsBeforeEq" },
-        { "$ref": "#/definitions/func-dateIsAfter" },
-        { "$ref": "#/definitions/func-dateIsAfterEq" },
-        { "$ref": "#/definitions/func-dateIsSameDay" }
+        { "$ref": "#/definitions/func-compare" },
+        { "$ref": "#/definitions/func-compare-inverse" }
       ]
     },
     "number": {
@@ -379,58 +375,28 @@
       ],
       "additionalItems": false
     },
-    "func-dateIsBefore": {
-      "title": "Date is before function",
-      "description": "This function checks if the first date/time is before the second date/time",
+    "func-compare": {
+      "title": "Compare function",
+      "description": "This function compares two values (or expressions) and returns a boolean. The first and last arguments are values, and the second argument is a comparison operator.",
       "type": "array",
       "items": [
-        { "const":  "dateIsBefore" },
-        { "$ref": "#/definitions/string" },
-        { "$ref": "#/definitions/string" }
+        { "const":  "compare" },
+        { "$ref": "#/definitions/any" },
+        { "$ref": "#/definitions/compare-operator" },
+        { "$ref": "#/definitions/any" }
       ],
       "additionalItems": false
     },
-    "func-dateIsBeforeEq": {
-      "title": "Date is before or equals function",
-      "description": "This function checks if the first date/time is before or equals the second date/time",
+    "func-compare-inverse": {
+      "title": "Inverse compare function",
+      "description": "This function compares two values (or expressions) and returns a boolean. The first and last arguments are values, and the third argument is a comparison operator.",
       "type": "array",
       "items": [
-        { "const":  "dateIsBeforeEq" },
-        { "$ref": "#/definitions/string" },
-        { "$ref": "#/definitions/string" }
-      ],
-      "additionalItems": false
-    },
-    "func-dateIsAfter": {
-      "title": "Date is after function",
-      "description": "This function checks if the first date/time is after the second date/time",
-      "type": "array",
-      "items": [
-        { "const":  "dateIsAfter" },
-        { "$ref": "#/definitions/string" },
-        { "$ref": "#/definitions/string" }
-      ],
-      "additionalItems": false
-    },
-    "func-dateIsAfterEq": {
-      "title": "Date is after or equals function",
-      "description": "This function checks if the first date/time is after or equals the second date/time",
-      "type": "array",
-      "items": [
-        { "const":  "dateIsAfterEq" },
-        { "$ref": "#/definitions/string" },
-        { "$ref": "#/definitions/string" }
-      ],
-      "additionalItems": false
-    },
-    "func-dateIsSameDay": {
-      "title": "Date is same day function",
-      "description": "This function checks if the first date/time is on the same day as the second date/time",
-      "type": "array",
-      "items": [
-        { "const":  "dateIsSameDay" },
-        { "$ref": "#/definitions/string" },
-        { "$ref": "#/definitions/string" }
+        { "const":  "compare" },
+        { "$ref": "#/definitions/any" },
+        { "const": "not" },
+        { "$ref": "#/definitions/compare-operator" },
+        { "$ref": "#/definitions/any" }
       ],
       "additionalItems": false
     },
@@ -659,6 +625,10 @@
         { "$ref": "#/definitions/string" }
       ],
       "additionalItems": false
+    },
+    "compare-operator": {
+      "title": "Comparison operator",
+      "enum": ["equals", "greaterThan", "greaterThanEq", "lessThan", "lessThanEq", "isAfter", "isBefore", "isAfterEq", "isBeforeEq", "isSameDay"]
     }
   }
 }

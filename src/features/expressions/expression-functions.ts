@@ -781,7 +781,7 @@ function defineCompareOp<T extends ExprVal, BothReq extends boolean>(
  * All the comparison operators available to execute inside the 'compare' function. This list of operators
  * have the following behaviors:
  */
-const CompareOperators = {
+export const CompareOperators = {
   equals: defineCompareOp({
     bothArgsMustBeValid: false,
     argType: ExprVal.String,

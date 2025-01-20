@@ -332,6 +332,11 @@ export const ExprFunctions = {
     args: [ExprVal.String, ExprVal.String] as const,
     minArguments: 1,
     returns: ExprVal.Any,
+    validator({ rawArgs, ctx, path }) {
+      if (rawArgs.length > 1 && rawArgs[1] !== null && typeof rawArgs[1] !== 'string') {
+        addError(ctx, [...path, '[2]'], 'The data type must be a string (expressions cannot be used here)');
+      }
+    },
   }),
   countDataElements: defineFunc({
     impl(dataType): number {

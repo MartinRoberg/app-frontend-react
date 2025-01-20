@@ -328,11 +328,11 @@ export const ExprTypes: {
     accepts: [ExprVal.String, ExprVal.Number, ExprVal.Date],
     impl(arg) {
       if (typeof arg === 'number') {
-        return parseDate(String(arg)); // Might be just a 4-digit year
+        return parseDate(this, String(arg)); // Might be just a 4-digit year
       }
 
       if (typeof arg === 'string') {
-        return arg ? parseDate(arg) : null;
+        return arg ? parseDate(this, arg) : null;
       }
 
       throw new UnexpectedType(this.expr, this.path, 'date', arg);
@@ -353,7 +353,7 @@ const datePatterns = [
   /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})Z?$/,
 ];
 
-function parseDate(date: string): Date | null {
+function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
   for (const regex of datePatterns) {
     const match = regex.exec(date);
     if (match && match.length >= 2) {
@@ -364,8 +364,34 @@ function parseDate(date: string): Date | null {
       const minute = match[5] ? parseInt(match[5], 10) : 0;
       const second = match[6] ? parseInt(match[6], 10) : 0;
       const ms = match[7] ? parseInt(match[7], 10) : 0;
-      return new Date(year, month, day, hour, minute, second, ms);
+      const result = new Date(year, month, day, hour, minute, second, ms);
+
+      // Make sure the result was valid. If your date is "2020-02-31", it will be converted to "2020-03-02" when
+      // passed to the Date constructor. We want to catch these cases and throw an error instead.
+      const valid =
+        result.getFullYear() == year &&
+        result.getMonth() == month &&
+        result.getDate() == day &&
+        result.getHours() == hour &&
+        result.getMinutes() == minute &&
+        result.getSeconds() == second &&
+        result.getMilliseconds() == ms;
+
+      if (valid) {
+        return result;
+      }
+
+      throw new ExprRuntimeError(
+        ctx.expr,
+        ctx.path,
+        `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
+      );
     }
   }
+
+  if (date.trim() !== '') {
+    throw new ExprRuntimeError(ctx.expr, ctx.path, `Unable to parse date "${date}": Unknown format`);
+  }
+
   return null;
 }

@@ -134,13 +134,15 @@ export function evalExpr(
 export function argTypeAt(func: ExprFunction, argIndex: number): ExprVal | undefined {
   const funcDef = ExprFunctions[func];
   const possibleArgs = funcDef.args;
-  const maybeReturn = possibleArgs[argIndex];
+  const maybeReturn = possibleArgs[argIndex]?.type;
   if (maybeReturn) {
     return maybeReturn;
   }
 
-  if (funcDef.lastArgSpreads) {
-    return possibleArgs[possibleArgs.length - 1];
+  const lastArg = funcDef.args[funcDef.args.length - 1];
+  const lastArgSpreads = lastArg?.variant === 'spreads';
+  if (lastArg && lastArgSpreads) {
+    return lastArg.type;
   }
 
   return undefined;

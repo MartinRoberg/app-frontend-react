@@ -16,27 +16,19 @@ import { BaseLayoutNode } from 'src/utils/layout/LayoutNode';
 import { LayoutPage } from 'src/utils/layout/LayoutPage';
 import type { DisplayData } from 'src/features/displayData';
 import type { EvaluateExpressionParams } from 'src/features/expressions';
-import type { ExprValToActual } from 'src/features/expressions/types';
+import type { ExprArgDef, ExprArgVariant, ExprValToActual } from 'src/features/expressions/types';
 import type { ValidationContext } from 'src/features/expressions/validation';
 import type { IDataModelReference } from 'src/layout/common.generated';
 import type { IAuthContext, IInstanceDataSources } from 'src/types/shared';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
-type ArgVariant = 'required' | 'optional' | 'spreads';
-type ExprDefArg<T extends ExprVal, Variant extends ArgVariant> = {
-  type: T;
-  variant: Variant;
+type ArgsToActual<T extends readonly ExprArgDef<ExprVal, ExprArgVariant>[]> = {
+  [Index in keyof T]: T[Index]['variant'] extends 'optional'
+    ? ExprValToActual<T[Index]['type']> | null | undefined
+    : ExprValToActual<T[Index]['type']> | null;
 };
 
-type ArgsToActual<T extends readonly ExprDefArg<ExprVal, ArgVariant>[]> = {
-  [Index in keyof T]: T[Index]['variant'] extends 'spreads'
-    ? ExprValToActual<T[Index]['type']> | null
-    : T[Index]['variant'] extends 'required'
-      ? ExprValToActual<T[Index]['type']> | null
-      : ExprValToActual<T[Index]['type']> | null | undefined;
-};
-
-export interface FuncDef<Args extends readonly ExprDefArg<ExprVal, ArgVariant>[], Ret extends ExprVal> {
+export interface FuncDef<Args extends readonly ExprArgDef<ExprVal, ExprArgVariant>[], Ret extends ExprVal> {
   impl: (this: EvaluateExpressionParams, ...params: ArgsToActual<Args>) => ExprValToActual<Ret> | null;
   args: Args;
   returns: Ret;
@@ -56,45 +48,21 @@ export interface FuncDef<Args extends readonly ExprDefArg<ExprVal, ArgVariant>[]
   runNumArgsValidator?: boolean;
 }
 
-function required<T extends ExprVal>(type: T): ExprDefArg<T, 'required'> {
+function required<T extends ExprVal>(type: T): ExprArgDef<T, 'required'> {
   return { type, variant: 'required' };
 }
 
-function optional<T extends ExprVal>(type: T): ExprDefArg<T, 'optional'> {
+function optional<T extends ExprVal>(type: T): ExprArgDef<T, 'optional'> {
   return { type, variant: 'optional' };
 }
 
-function spreads<T extends ExprVal>(type: T): ExprDefArg<T, 'spreads'> {
+function spreads<T extends ExprVal>(type: T): ExprArgDef<T, 'spreads'> {
   return { type, variant: 'spreads' };
 }
 
-function defineFunc<Args extends readonly ExprDefArg<ExprVal, ArgVariant>[], Ret extends ExprVal>(
+function defineFunc<Args extends readonly ExprArgDef<ExprVal, ExprArgVariant>[], Ret extends ExprVal>(
   def: FuncDef<Args, Ret>,
 ): FuncDef<Mutable<Args>, Ret> {
-  let optionalFound = false;
-  let spreadsFound = false;
-  for (const arg of def.args) {
-    if (!optionalFound && arg.variant === 'optional') {
-      optionalFound = true;
-    } else if (!spreadsFound && arg.variant === 'spreads') {
-      spreadsFound = true;
-    } else if (arg.variant === 'required' && (optionalFound || spreadsFound)) {
-      throw new Error('Required argument found after optional or spreads argument');
-    } else if (arg.variant === 'optional' && spreadsFound) {
-      throw new Error('Optional argument found after spreads argument');
-    } else if (arg.variant === 'spreads' && spreadsFound) {
-      throw new Error('Multiple spreads arguments found');
-    }
-  }
-
-  if (def.returns === ExprVal.Date) {
-    throw new Error(
-      'Date is not a valid return type for an expression function. It is only possible to receive a Date as ' +
-        'an argument, and if you need to return a Date, you should return it as a string (formatted in a way ' +
-        'that lets the date parser parse it).',
-    );
-  }
-
   return def;
 }
 
@@ -196,17 +164,17 @@ export const ExprFunctions = {
   }),
   concat: defineFunc({
     impl: (...args) => args.join(''),
-    args: [spreads(ExprVal.String)],
+    args: [spreads(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   and: defineFunc({
     impl: (...args) => args.reduce((prev, cur) => prev && !!cur, true),
-    args: [spreads(ExprVal.Boolean)],
+    args: [spreads(ExprVal.Boolean)] as const,
     returns: ExprVal.Boolean,
   }),
   or: defineFunc({
     impl: (...args) => args.reduce((prev, cur) => prev || !!cur, false),
-    args: [spreads(ExprVal.Boolean)],
+    args: [spreads(ExprVal.Boolean)] as const,
     returns: ExprVal.Boolean,
   }),
   if: defineFunc({
@@ -758,7 +726,7 @@ export const ExprFunctions = {
     },
     returns: ExprVal.String,
   }),
-};
+} satisfies { [key: string]: FuncDef<readonly ExprArgDef<ExprVal, ExprArgVariant>[], ExprVal> };
 
 function pickSimpleValue(path: IDataModelReference, params: EvaluateExpressionParams) {
   const isValidDataType = params.dataSources.dataModelNames.includes(path.dataType);

@@ -55,7 +55,7 @@ type IndexHack<F extends ExprFunction> = ['Here goes the function name', ...Args
 type MaybeRecursive<
   F extends ExprFunction,
   Iterations extends Prev[number],
-  Args extends ('Here goes the function name' | ExprVal)[] = IndexHack<F>,
+  Args extends ('Here goes the function name' | ExprArgDef<ExprVal, ExprArgVariant>)[] = IndexHack<F>,
 > = [Iterations] extends [never]
   ? never
   : {
@@ -117,4 +117,10 @@ export type ExprPositionalArgs = ExprValToActual<ExprVal.Any>[];
 export type ExprValueArgs<T extends object = any> = {
   data: T;
   defaultKey: keyof T;
+};
+
+export type ExprArgVariant = 'required' | 'optional' | 'spreads';
+export type ExprArgDef<T extends ExprVal, Variant extends ExprArgVariant> = {
+  type: T;
+  variant: Variant;
 };

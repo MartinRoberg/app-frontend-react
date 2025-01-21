@@ -91,12 +91,13 @@ function validateFunctionArgLength(
 ) {
   const expected = ExprFunctions[func].args;
 
-  let minExpected = ExprFunctions[func]?.minArguments;
-  if (minExpected === undefined) {
-    minExpected = expected.length;
-  }
+  const firstOptionalIdx = ExprFunctions[func].args.findIndex(
+    (arg) => arg.variant === 'optional' || arg.variant === 'spreads',
+  );
+  const minExpected = firstOptionalIdx === -1 ? expected.length : firstOptionalIdx;
 
-  const canSpread = ExprFunctions[func].lastArgSpreads;
+  const lastArg = expected[expected.length - 1];
+  const canSpread = lastArg?.variant === 'spreads';
   if (canSpread && actual.length >= minExpected) {
     return;
   }

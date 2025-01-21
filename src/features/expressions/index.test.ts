@@ -1,5 +1,5 @@
 import { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
-import { ExprFunctions } from 'src/features/expressions/expression-functions';
+import { ExprFunctionDefinitions } from 'src/features/expressions/expression-functions';
 import { evalExpr } from 'src/features/expressions/index';
 import { ExprVal } from 'src/features/expressions/types';
 import type { ExprConfig } from 'src/features/expressions/types';
@@ -25,8 +25,8 @@ describe('Expressions', () => {
   });
 
   describe('all function definitions should be valid', () => {
-    it.each(Object.keys(ExprFunctions))('%s should have a valid function definition', (name) => {
-      const def = ExprFunctions[name];
+    it.each(Object.keys(ExprFunctionDefinitions))('%s should have a valid function definition', (name) => {
+      const def = ExprFunctionDefinitions[name];
 
       let optionalFound = false;
       let spreadsFound = false;

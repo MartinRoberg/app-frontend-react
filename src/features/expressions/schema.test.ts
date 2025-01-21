@@ -1,17 +1,16 @@
 import Ajv from 'ajv';
 import expressionSchema from 'schemas/json/layout/expression.schema.v1.json';
 
-import { CompareOperators, ExprFunctions } from 'src/features/expressions/expression-functions';
+import { CompareOperators, ExprFunctionDefinitions } from 'src/features/expressions/expression-functions';
 import { ExprVal } from 'src/features/expressions/types';
-import type { FuncDef } from 'src/features/expressions/expression-functions';
-import type { ExprArgDef, ExprArgVariant } from 'src/features/expressions/types';
+import type { AnyFuncDef } from 'src/features/expressions/expression-functions';
 
-type Func = { name: string } & FuncDef<readonly ExprArgDef<ExprVal, ExprArgVariant>[], ExprVal>;
+type Func = { name: string } & AnyFuncDef;
 
 describe('expression schema tests', () => {
   const functions: Func[] = [];
-  for (const name of Object.keys(ExprFunctions)) {
-    const func = ExprFunctions[name];
+  for (const name of Object.keys(ExprFunctionDefinitions)) {
+    const func = ExprFunctionDefinitions[name];
     functions.push({ name, ...func });
   }
 
@@ -126,7 +125,7 @@ describe('expression schema tests', () => {
   it('no other function definitions should be present', () => {
     const hardcodedAllowed = new Set(['func-if-without-else', 'func-if-with-else', 'func-compare-inverse']);
     const functionDefs = Object.keys(expressionSchema.definitions).filter((key) => key.startsWith('func-'));
-    const validFunctionDefs = new Set(Object.keys(ExprFunctions).map((name) => `func-${name}`));
+    const validFunctionDefs = new Set(Object.keys(ExprFunctionDefinitions).map((name) => `func-${name}`));
     const unknownFunctionDefs = functionDefs.filter((key) => !validFunctionDefs.has(key) && !hardcodedAllowed.has(key));
     expect(unknownFunctionDefs).toEqual([]);
   });

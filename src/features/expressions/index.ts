@@ -8,7 +8,7 @@ import {
   UnknownSourceType,
   UnknownTargetType,
 } from 'src/features/expressions/errors';
-import { ExprFunctions } from 'src/features/expressions/expression-functions';
+import { ExprFunctionDefinitions, ExprFunctionImplementations } from 'src/features/expressions/expression-functions';
 import { ExprVal } from 'src/features/expressions/types';
 import type { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import type {
@@ -62,15 +62,15 @@ function isExpression(input: unknown): input is Expression {
     Array.isArray(input) &&
     input.length >= 1 &&
     typeof input[0] === 'string' &&
-    Object.keys(ExprFunctions).includes(input[0])
+    Object.keys(ExprFunctionDefinitions).includes(input[0])
   );
 }
 
 /**
  * Run/evaluate an expression. You have to provide your own context containing functions for looking up external values.
  */
-export function evalExpr(
-  expr: Expression | ExprValToActual | undefined,
+export function evalExpr<V extends ExprVal = ExprVal>(
+  expr: ExprValToActualOrExpr<V> | undefined,
   node: LayoutNode | LayoutPage | NodeNotFoundWithoutContext,
   dataSources: ExpressionDataSources,
   options?: EvalExprOptions,
@@ -132,7 +132,7 @@ export function evalExpr(
 }
 
 export function argTypeAt(func: ExprFunction, argIndex: number): ExprVal | undefined {
-  const funcDef = ExprFunctions[func];
+  const funcDef = ExprFunctionDefinitions[func];
   const possibleArgs = funcDef.args;
   const maybeReturn = possibleArgs[argIndex]?.type;
   if (maybeReturn) {
@@ -154,7 +154,7 @@ function innerEvalExpr(params: EvaluateExpressionParams): any {
   const stringPath = stringifyPath(path);
 
   const [func, ...args] = stringPath ? dot.pick(stringPath, expr, false) : expr;
-  const returnType = ExprFunctions[func].returns;
+  const returnType = ExprFunctionDefinitions[func].returns;
 
   const computedArgs = args.map((arg: unknown, idx: number) => {
     const realIdx = idx + 1;
@@ -167,7 +167,7 @@ function innerEvalExpr(params: EvaluateExpressionParams): any {
 
   const { onBeforeFunctionCall, onAfterFunctionCall } = params.callbacks;
 
-  const actualFunc = ExprFunctions[func].impl;
+  const actualFunc = ExprFunctionImplementations[func];
 
   onBeforeFunctionCall?.(path, func, computedArgs);
   const returnValue = actualFunc.apply(params, computedArgs);

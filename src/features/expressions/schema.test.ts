@@ -47,8 +47,8 @@ describe('expression schema tests', () => {
       });
     }
 
-    const minArguments = args.findIndex((arg) => arg.variant === 'optional' || arg.variant === 'spreads');
-    const lastArgSpreads = args[args.length - 1]?.variant === 'spreads';
+    const minArguments = args.findIndex((arg) => arg.variant === 'optional' || arg.variant === 'rest');
+    const lastArgSpreads = args[args.length - 1]?.variant === 'rest';
 
     if (minArguments === -1) {
       expect(expressionSchema.definitions[`func-${name}`].items.length).toBe(args.length + 1);
@@ -74,7 +74,7 @@ describe('expression schema tests', () => {
     }
 
     const funcDef = expressionSchema.definitions[`func-${name}`];
-    const lastArgSpreads = args[args.length - 1]?.variant === 'spreads';
+    const lastArgSpreads = args[args.length - 1]?.variant === 'rest';
 
     // With exactly the right number of arguments
     const funcCall = [name, ...args.map((arg) => exprValToString(arg.type))];

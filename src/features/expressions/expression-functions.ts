@@ -36,6 +36,7 @@ export interface FuncDef<Args extends readonly AnyExprArg[], Ret extends ExprVal
 export interface FuncValidationDef {
   // Optional: Validator function which runs when the function is validated. This allows a function to add its own
   // validation requirements. Use the addError() function if any errors are found.
+  // This runs after the automatic 'number of arguments validator', and will not run if the automatic validator fails.
   validator?: (options: {
     rawArgs: unknown[];
     argTypes: (ExprVal | undefined)[];
@@ -44,24 +45,20 @@ export interface FuncValidationDef {
   }) => void;
 
   // Optional: Set this to false if the automatic 'number of arguments validator' should NOT be run for this function.
-  // Defaults to true. The minimum number of arguments will be args.length unless minArguments is set, and the
-  // maximum number of arguments will be args.length unless lastArgSpreads is set.
+  // Defaults to true.
   runNumArgsValidator?: boolean;
 }
 
-type RequiredArg<T extends ExprVal> = ExprArgDef<T, 'required'>;
-function required<T extends ExprVal>(type: T): RequiredArg<T> {
+function required<T extends ExprVal>(type: T): ExprArgDef<T, 'required'> {
   return { type, variant: 'required' };
 }
 
-type OptionalArg<T extends ExprVal> = ExprArgDef<T, 'optional'>;
-function optional<T extends ExprVal>(type: T): OptionalArg<T> {
+function optional<T extends ExprVal>(type: T): ExprArgDef<T, 'optional'> {
   return { type, variant: 'optional' };
 }
 
-type ArgThatSpreads<T extends ExprVal> = ExprArgDef<T, 'spreads'>;
-function spreads<T extends ExprVal>(type: T): ArgThatSpreads<T> {
-  return { type, variant: 'spreads' };
+function rest<T extends ExprVal>(type: T): ExprArgDef<T, 'rest'> {
+  return { type, variant: 'rest' };
 }
 
 function args<A extends readonly AnyExprArg[]>(...args: A): A {
@@ -110,15 +107,15 @@ export const ExprFunctionDefinitions = {
     returns: ExprVal.Boolean,
   },
   concat: {
-    args: args(spreads(ExprVal.String)),
+    args: args(rest(ExprVal.String)),
     returns: ExprVal.String,
   },
   and: {
-    args: args(spreads(ExprVal.Boolean)),
+    args: args(rest(ExprVal.Boolean)),
     returns: ExprVal.Boolean,
   },
   or: {
-    args: args(spreads(ExprVal.Boolean)),
+    args: args(rest(ExprVal.Boolean)),
     returns: ExprVal.Boolean,
   },
   if: {

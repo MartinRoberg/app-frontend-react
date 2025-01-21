@@ -2,6 +2,7 @@ import { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import { ExprFunctionDefinitions } from 'src/features/expressions/expression-functions';
 import { evalExpr } from 'src/features/expressions/index';
 import { ExprVal } from 'src/features/expressions/types';
+import type { AnyFuncDef } from 'src/features/expressions/expression-functions';
 import type { ExprConfig } from 'src/features/expressions/types';
 import type { ExpressionDataSources } from 'src/utils/layout/useExpressionDataSources';
 
@@ -26,21 +27,21 @@ describe('Expressions', () => {
 
   describe('all function definitions should be valid', () => {
     it.each(Object.keys(ExprFunctionDefinitions))('%s should have a valid function definition', (name) => {
-      const def = ExprFunctionDefinitions[name];
+      const def = ExprFunctionDefinitions[name] as AnyFuncDef;
 
       let optionalFound = false;
-      let spreadsFound = false;
+      let restFound = false;
       for (const arg of def.args) {
-        if (!optionalFound && arg.variant === 'optional') {
+        if (!optionalFound && !restFound && arg.variant === 'optional') {
           optionalFound = true;
-        } else if (!spreadsFound && arg.variant === 'spreads') {
-          spreadsFound = true;
-        } else if (arg.variant === 'required' && (optionalFound || spreadsFound)) {
-          throw new Error('Required argument found after optional or spreads argument');
-        } else if (arg.variant === 'optional' && spreadsFound) {
-          throw new Error('Optional argument found after spreads argument');
-        } else if (arg.variant === 'spreads' && spreadsFound) {
-          throw new Error('Multiple spreads arguments found');
+        } else if (!restFound && arg.variant === 'rest') {
+          restFound = true;
+        } else if (arg.variant === 'required' && (optionalFound || restFound)) {
+          throw new Error('Required argument found after optional or rest argument');
+        } else if (arg.variant === 'optional' && restFound) {
+          throw new Error('Optional argument found after rest argument');
+        } else if (arg.variant === 'rest' && restFound) {
+          throw new Error('Multiple rest arguments found');
         }
       }
 

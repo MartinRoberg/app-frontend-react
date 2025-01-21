@@ -119,7 +119,7 @@ export type ExprValueArgs<T extends object = any> = {
   defaultKey: keyof T;
 };
 
-export type ExprArgVariant = 'required' | 'optional' | 'spreads';
+export type ExprArgVariant = 'required' | 'optional' | 'rest';
 export type ExprArgDef<T extends ExprVal, Variant extends ExprArgVariant> = {
   type: T;
   variant: Variant;

@@ -140,7 +140,7 @@ export function argTypeAt(func: ExprFunction, argIndex: number): ExprVal | undef
   }
 
   const lastArg = funcDef.args[funcDef.args.length - 1];
-  const lastArgSpreads = lastArg?.variant === 'spreads';
+  const lastArgSpreads = lastArg?.variant === 'rest';
   if (lastArg && lastArgSpreads) {
     return lastArg.type;
   }

@@ -101,11 +101,11 @@ function validateFunctionArgLength(
     return;
   }
 
-  const firstOptionalIdx = expected.findIndex((arg) => arg.variant === 'optional' || arg.variant === 'spreads');
+  const firstOptionalIdx = expected.findIndex((arg) => arg.variant === 'optional' || arg.variant === 'rest');
   const minExpected = firstOptionalIdx === -1 ? expected.length : firstOptionalIdx;
 
   const lastArg = expected[expected.length - 1];
-  const canSpread = lastArg?.variant === 'spreads';
+  const canSpread = lastArg?.variant === 'rest';
   if (canSpread && actual.length >= minExpected) {
     return;
   }

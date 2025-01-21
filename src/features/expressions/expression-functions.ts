@@ -29,8 +29,11 @@ type ArgsToActualOrNull<T extends readonly ExprVal[]> = {
 export interface FuncDef<Args extends readonly ExprVal[], Ret extends ExprVal> {
   impl: (this: EvaluateExpressionParams, ...params: ArgsToActualOrNull<Args>) => ExprValToActual<Ret> | null;
   args: Args;
-  minArguments?: number;
   returns: Ret;
+
+  // Beware that if you set this, the generated types for parameters to impl() might be off. Optional parameters
+  // may also be 'undefined' in case they are not provided (as opposed to just null, as in the type hint).
+  minArguments?: number;
 
   // Optional: Set this to true if the last argument type is considered a '...spread' argument, meaning
   // all the rest of the arguments should be cast to the last type (and that the function allows any
@@ -87,7 +90,7 @@ export const ExprFunctions = {
     returns: ExprVal.Any,
   }),
   value: defineFunc({
-    impl(key) {
+    impl(key: string | null | undefined) {
       const config = this.valueArguments;
       if (!config) {
         throw new ExprRuntimeError(this.expr, this.path, 'No value arguments available');
@@ -341,7 +344,7 @@ export const ExprFunctions = {
   countDataElements: defineFunc({
     impl(dataType): number {
       if (dataType === null) {
-        throw new ExprRuntimeError(this.expr, this.path, `Cannot count the number of data elements for null`);
+        throw new ExprRuntimeError(this.expr, this.path, `Expected dataType argument to be a string`);
       }
 
       const length = this.dataSources.dataElementSelector(
@@ -435,7 +438,7 @@ export const ExprFunctions = {
     returns: ExprVal.String,
   }),
   formatDate: defineFunc({
-    impl(date, format) {
+    impl(date, format: string | null | undefined) {
       return date ? formatDateLocale(this.dataSources.currentLanguage, date, format ?? undefined) : null;
     },
     minArguments: 1,
@@ -443,7 +446,7 @@ export const ExprFunctions = {
     returns: ExprVal.String,
   }),
   compare: defineFunc({
-    impl(arg1, arg2, arg3, arg4) {
+    impl(arg1, arg2, arg3, arg4: string | number | boolean | null | undefined) {
       return arg2 === 'not'
         ? !compare(this, arg3 as CompareOperator, arg1, arg4, 0, 3)
         : compare(this, arg2 as CompareOperator, arg1, arg3, 0, 2);
@@ -471,9 +474,9 @@ export const ExprFunctions = {
     },
   }),
   round: defineFunc({
-    impl(number, decimalPoints) {
+    impl(number, decimalPoints: number | null | undefined) {
       const realNumber = number === null ? 0 : number;
-      const realDecimalPoints = decimalPoints === null ? 0 : decimalPoints;
+      const realDecimalPoints = decimalPoints === null || decimalPoints === undefined ? 0 : decimalPoints;
       return parseFloat(`${realNumber}`).toFixed(realDecimalPoints);
     },
     args: [ExprVal.Number, ExprVal.Number] as const,
@@ -526,7 +529,6 @@ export const ExprFunctions = {
       return `<a href="${newUrl}" data-link-type="LinkToPotentialNode">${linkText}</a>`;
     },
     args: [ExprVal.String, ExprVal.String] as const,
-    minArguments: 2,
     returns: ExprVal.String,
   }),
   linkToPage: defineFunc({
@@ -551,7 +553,6 @@ export const ExprFunctions = {
       return `<a href="${url}" data-link-type="LinkToPotentialPage">${linkText}</a>`;
     },
     args: [ExprVal.String, ExprVal.String] as const,
-    minArguments: 2,
     returns: ExprVal.String,
   }),
   language: defineFunc({
@@ -618,7 +619,7 @@ export const ExprFunctions = {
     returns: ExprVal.Number,
   }),
   stringSlice: defineFunc({
-    impl(string, start, length) {
+    impl(string, start, length: number | null | undefined) {
       if (start === null) {
         throw new ExprRuntimeError(
           this.expr,
@@ -632,11 +633,11 @@ export const ExprFunctions = {
       if (start < 0) {
         throw new ExprRuntimeError(this.expr, this.path, `Start index cannot be negative`);
       }
-      if (length !== null && length < 0) {
+      if (length !== null && length !== undefined && length < 0) {
         throw new ExprRuntimeError(this.expr, this.path, `Length cannot be negative`);
       }
 
-      if (length === null) {
+      if (length === null || length === undefined) {
         return string.substring(start);
       }
 
@@ -713,7 +714,13 @@ export const ExprFunctions = {
   }),
   _experimentalSelectAndMap: defineFunc({
     args: [ExprVal.String, ExprVal.String, ExprVal.String, ExprVal.String, ExprVal.Boolean] as const,
-    impl(path, propertyToSelect, prepend, append, appendToLastElement = true) {
+    impl(
+      path,
+      propertyToSelect,
+      prepend: string | null | undefined,
+      append: string | null | undefined,
+      appendToLastElement = true,
+    ) {
       if (path === null || propertyToSelect == null) {
         throw new ExprRuntimeError(this.expr, this.path, `Cannot lookup dataModel null`);
       }

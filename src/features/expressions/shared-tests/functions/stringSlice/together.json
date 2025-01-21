@@ -5,6 +5,7 @@
     [
       "stringSlice",
       ["dataModel", "string"],
+      0,
       ["stringIndexOf", ["dataModel", "string"], "world"]
     ],
     "expressions!"

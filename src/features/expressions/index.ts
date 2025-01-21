@@ -8,7 +8,7 @@ import {
   UnknownSourceType,
   UnknownTargetType,
 } from 'src/features/expressions/errors';
-import { ExprFunctions } from 'src/features/expressions/expression-functions';
+import { ExprFunctionDefinitions, ExprFunctionImplementations } from 'src/features/expressions/expression-functions';
 import { ExprVal } from 'src/features/expressions/types';
 import type { NodeNotFoundWithoutContext } from 'src/features/expressions/errors';
 import type {
@@ -62,15 +62,15 @@ function isExpression(input: unknown): input is Expression {
     Array.isArray(input) &&
     input.length >= 1 &&
     typeof input[0] === 'string' &&
-    Object.keys(ExprFunctions).includes(input[0])
+    Object.keys(ExprFunctionDefinitions).includes(input[0])
   );
 }
 
 /**
  * Run/evaluate an expression. You have to provide your own context containing functions for looking up external values.
  */
-export function evalExpr(
-  expr: Expression | ExprValToActual | undefined,
+export function evalExpr<V extends ExprVal = ExprVal>(
+  expr: ExprValToActualOrExpr<V> | undefined,
   node: LayoutNode | LayoutPage | NodeNotFoundWithoutContext,
   dataSources: ExpressionDataSources,
   options?: EvalExprOptions,
@@ -106,7 +106,7 @@ export function evalExpr(
     ) {
       // If you have an expression that expects (for example) a true|false return value, and the actual returned result
       // is "true" (as a string), it makes sense to finally cast the value to the proper return value type.
-      return castValue(result, options.config.returnType, evalParams);
+      return exprCastValue(result, options.config.returnType, evalParams);
     }
 
     return result;
@@ -132,15 +132,17 @@ export function evalExpr(
 }
 
 export function argTypeAt(func: ExprFunction, argIndex: number): ExprVal | undefined {
-  const funcDef = ExprFunctions[func];
+  const funcDef = ExprFunctionDefinitions[func];
   const possibleArgs = funcDef.args;
-  const maybeReturn = possibleArgs[argIndex];
+  const maybeReturn = possibleArgs[argIndex]?.type;
   if (maybeReturn) {
     return maybeReturn;
   }
 
-  if (funcDef.lastArgSpreads) {
-    return possibleArgs[possibleArgs.length - 1];
+  const lastArg = funcDef.args[funcDef.args.length - 1];
+  const lastArgSpreads = lastArg?.variant === 'rest';
+  if (lastArg && lastArgSpreads) {
+    return lastArg.type;
   }
 
   return undefined;
@@ -152,7 +154,7 @@ function innerEvalExpr(params: EvaluateExpressionParams): any {
   const stringPath = stringifyPath(path);
 
   const [func, ...args] = stringPath ? dot.pick(stringPath, expr, false) : expr;
-  const returnType = ExprFunctions[func].returns;
+  const returnType = ExprFunctionDefinitions[func].returns;
 
   const computedArgs = args.map((arg: unknown, idx: number) => {
     const realIdx = idx + 1;
@@ -160,16 +162,16 @@ function innerEvalExpr(params: EvaluateExpressionParams): any {
     const paramsWithNewPath = { ...params, path: [...path, `[${realIdx}]`] };
     const argValue = Array.isArray(arg) ? innerEvalExpr(paramsWithNewPath) : arg;
     const argType = argTypeAt(func, idx);
-    return castValue(argValue, argType, paramsWithNewPath);
+    return exprCastValue(argValue, argType, paramsWithNewPath);
   });
 
   const { onBeforeFunctionCall, onAfterFunctionCall } = params.callbacks;
 
-  const actualFunc = ExprFunctions[func].impl;
+  const actualFunc = ExprFunctionImplementations[func];
 
   onBeforeFunctionCall?.(path, func, computedArgs);
   const returnValue = actualFunc.apply(params, computedArgs);
-  const returnValueCasted = castValue(returnValue, returnType, params);
+  const returnValueCasted = exprCastValue(returnValue, returnType, params);
   onAfterFunctionCall?.(path, func, computedArgs, returnValueCasted);
 
   return returnValueCasted;
@@ -203,7 +205,7 @@ function valueToExprValueType(value: unknown): ExprVal {
  * This function is used to cast any value to a target type before/after it is passed
  * through a function call.
  */
-function castValue<T extends ExprVal>(
+export function exprCastValue<T extends ExprVal>(
   value: unknown,
   toType: T | undefined,
   context: EvaluateExpressionParams,
@@ -240,7 +242,7 @@ function asNumber(arg: string) {
 
 /**
  * All the types available in expressions, along with functions to cast possible values to them
- * @see castValue
+ * @see exprCastValue
  */
 export const ExprTypes: {
   [Type in ExprVal]: {
@@ -323,4 +325,75 @@ export const ExprTypes: {
     accepts: [ExprVal.Boolean, ExprVal.String, ExprVal.Number, ExprVal.Any],
     impl: (arg) => arg,
   },
+  [ExprVal.Date]: {
+    nullable: true,
+    accepts: [ExprVal.String, ExprVal.Number, ExprVal.Date],
+    impl(arg) {
+      if (typeof arg === 'number') {
+        return parseDate(this, String(arg)); // Might be just a 4-digit year
+      }
+
+      if (typeof arg === 'string') {
+        return arg ? parseDate(this, arg) : null;
+      }
+
+      throw new UnexpectedType(this.expr, this.path, 'date', arg);
+    },
+  },
 };
+
+/**
+ * Strict date parser. We don't want to support all the formats that Date.parse() supports, because that
+ * would make it more difficult to implement the same functionality on the backend. For that reason, we
+ * limit ourselves to simple ISO 8601 dates + the format DateTime is serialized to JSON in.
+ */
+const datePatterns = [
+  /^(\d{4})$/,
+  /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})Z?$/,
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})Z?$/,
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})Z?$/,
+];
+
+function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
+  for (const regex of datePatterns) {
+    const match = regex.exec(date);
+    if (match && match.length >= 2) {
+      const year = parseInt(match[1], 10);
+      const month = match[2] ? parseInt(match[2], 10) - 1 : 0;
+      const day = match[3] ? parseInt(match[3], 10) : 1;
+      const hour = match[4] ? parseInt(match[4], 10) : 0;
+      const minute = match[5] ? parseInt(match[5], 10) : 0;
+      const second = match[6] ? parseInt(match[6], 10) : 0;
+      const ms = match[7] ? parseInt(match[7], 10) : 0;
+      const result = new Date(year, month, day, hour, minute, second, ms);
+
+      // Make sure the result was valid. If your date is "2020-02-31", it will be converted to "2020-03-02" when
+      // passed to the Date constructor. We want to catch these cases and throw an error instead.
+      const valid =
+        result.getFullYear() == year &&
+        result.getMonth() == month &&
+        result.getDate() == day &&
+        result.getHours() == hour &&
+        result.getMinutes() == minute &&
+        result.getSeconds() == second &&
+        result.getMilliseconds() == ms;
+
+      if (valid) {
+        return result;
+      }
+
+      throw new ExprRuntimeError(
+        ctx.expr,
+        ctx.path,
+        `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
+      );
+    }
+  }
+
+  if (date.trim() !== '') {
+    throw new ExprRuntimeError(ctx.expr, ctx.path, `Unable to parse date "${date}": Unknown format`);
+  }
+
+  return null;
+}

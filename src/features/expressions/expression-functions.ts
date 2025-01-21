@@ -22,29 +22,29 @@ import type { IDataModelReference } from 'src/layout/common.generated';
 import type { IAuthContext, IInstanceDataSources } from 'src/types/shared';
 import type { LayoutNode } from 'src/utils/layout/LayoutNode';
 
-type ArgsToActualOrNull<T extends readonly ExprVal[]> = {
-  [Index in keyof T]: ExprValToActual<T[Index]> | null;
+type ArgVariant = 'required' | 'optional' | 'spreads';
+type ExprDefArg<T extends ExprVal, Variant extends ArgVariant> = {
+  type: T;
+  variant: Variant;
 };
 
-export interface FuncDef<Args extends readonly ExprVal[], Ret extends ExprVal> {
-  impl: (this: EvaluateExpressionParams, ...params: ArgsToActualOrNull<Args>) => ExprValToActual<Ret> | null;
+type ArgsToActual<T extends readonly ExprDefArg<ExprVal, ArgVariant>[]> = {
+  [Index in keyof T]: T[Index]['variant'] extends 'spreads'
+    ? ExprValToActual<T[Index]['type']> | null
+    : T[Index]['variant'] extends 'required'
+      ? ExprValToActual<T[Index]['type']> | null
+      : ExprValToActual<T[Index]['type']> | null | undefined;
+};
+
+export interface FuncDef<Args extends readonly ExprDefArg<ExprVal, ArgVariant>[], Ret extends ExprVal> {
+  impl: (this: EvaluateExpressionParams, ...params: ArgsToActual<Args>) => ExprValToActual<Ret> | null;
   args: Args;
   returns: Ret;
-
-  // Beware that if you set this, the generated types for parameters to impl() might be off. Optional parameters
-  // may also be 'undefined' in case they are not provided (as opposed to just null, as in the type hint).
-  minArguments?: number;
-
-  // Optional: Set this to true if the last argument type is considered a '...spread' argument, meaning
-  // all the rest of the arguments should be cast to the last type (and that the function allows any
-  // amount  of parameters).
-  lastArgSpreads?: true;
 
   // Optional: Validator function which runs when the function is validated. This allows a function to add its own
   // validation requirements. Use the addError() function if any errors are found.
   validator?: (options: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rawArgs: any[];
+    rawArgs: unknown[];
     argTypes: (ExprVal | undefined)[];
     ctx: ValidationContext;
     path: string[];
@@ -56,9 +56,37 @@ export interface FuncDef<Args extends readonly ExprVal[], Ret extends ExprVal> {
   runNumArgsValidator?: boolean;
 }
 
-function defineFunc<Args extends readonly ExprVal[], Ret extends ExprVal>(
+function required<T extends ExprVal>(type: T): ExprDefArg<T, 'required'> {
+  return { type, variant: 'required' };
+}
+
+function optional<T extends ExprVal>(type: T): ExprDefArg<T, 'optional'> {
+  return { type, variant: 'optional' };
+}
+
+function spreads<T extends ExprVal>(type: T): ExprDefArg<T, 'spreads'> {
+  return { type, variant: 'spreads' };
+}
+
+function defineFunc<Args extends readonly ExprDefArg<ExprVal, ArgVariant>[], Ret extends ExprVal>(
   def: FuncDef<Args, Ret>,
 ): FuncDef<Mutable<Args>, Ret> {
+  let optionalFound = false;
+  let spreadsFound = false;
+  for (const arg of def.args) {
+    if (!optionalFound && arg.variant === 'optional') {
+      optionalFound = true;
+    } else if (!spreadsFound && arg.variant === 'spreads') {
+      spreadsFound = true;
+    } else if (arg.variant === 'required' && (optionalFound || spreadsFound)) {
+      throw new Error('Required argument found after optional or spreads argument');
+    } else if (arg.variant === 'optional' && spreadsFound) {
+      throw new Error('Optional argument found after spreads argument');
+    } else if (arg.variant === 'spreads' && spreadsFound) {
+      throw new Error('Multiple spreads arguments found');
+    }
+  }
+
   if (def.returns === ExprVal.Date) {
     throw new Error(
       'Date is not a valid return type for an expression function. It is only possible to receive a Date as ' +
@@ -86,11 +114,11 @@ export const ExprFunctions = {
 
       return this.positionalArguments[idx];
     },
-    args: [ExprVal.Number] as const,
+    args: [required(ExprVal.Number)] as const,
     returns: ExprVal.Any,
   }),
   value: defineFunc({
-    impl(key: string | null | undefined) {
+    impl(key) {
       const config = this.valueArguments;
       if (!config) {
         throw new ExprRuntimeError(this.expr, this.path, 'No value arguments available');
@@ -116,85 +144,78 @@ export const ExprFunctions = {
       const value = config.data[realKey];
       return value ?? null;
     },
-    minArguments: 0,
-    args: [ExprVal.String] as const,
+    args: [optional(ExprVal.String)] as const,
     returns: ExprVal.Any,
   }),
   equals: defineFunc({
     impl(arg1, arg2) {
       return compare(this, 'equals', arg1, arg2);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   notEquals: defineFunc({
     impl(arg1, arg2) {
       return !compare(this, 'equals', arg1, arg2);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   not: defineFunc({
     impl: (arg) => !arg,
-    args: [ExprVal.Boolean] as const,
+    args: [required(ExprVal.Boolean)] as const,
     returns: ExprVal.Boolean,
   }),
   greaterThan: defineFunc({
     impl(arg1, arg2) {
       return compare(this, 'greaterThan', arg1, arg2);
     },
-    args: [ExprVal.Number, ExprVal.Number] as const,
+    args: [required(ExprVal.Number), required(ExprVal.Number)] as const,
     returns: ExprVal.Boolean,
   }),
   greaterThanEq: defineFunc({
     impl(arg1, arg2) {
       return compare(this, 'greaterThanEq', arg1, arg2);
     },
-    args: [ExprVal.Number, ExprVal.Number] as const,
+    args: [required(ExprVal.Number), required(ExprVal.Number)] as const,
     returns: ExprVal.Boolean,
   }),
   lessThan: defineFunc({
     impl(arg1, arg2) {
       return compare(this, 'lessThan', arg1, arg2);
     },
-    args: [ExprVal.Number, ExprVal.Number] as const,
+    args: [required(ExprVal.Number), required(ExprVal.Number)] as const,
     returns: ExprVal.Boolean,
   }),
   lessThanEq: defineFunc({
     impl(arg1, arg2) {
       return compare(this, 'lessThanEq', arg1, arg2);
     },
-    args: [ExprVal.Number, ExprVal.Number] as const,
+    args: [required(ExprVal.Number), required(ExprVal.Number)] as const,
     returns: ExprVal.Boolean,
   }),
   concat: defineFunc({
     impl: (...args) => args.join(''),
-    args: [ExprVal.String],
-    minArguments: 0,
+    args: [spreads(ExprVal.String)],
     returns: ExprVal.String,
-    lastArgSpreads: true,
   }),
   and: defineFunc({
     impl: (...args) => args.reduce((prev, cur) => prev && !!cur, true),
-    args: [ExprVal.Boolean],
+    args: [spreads(ExprVal.Boolean)],
     returns: ExprVal.Boolean,
-    lastArgSpreads: true,
   }),
   or: defineFunc({
     impl: (...args) => args.reduce((prev, cur) => prev || !!cur, false),
-    args: [ExprVal.Boolean],
+    args: [spreads(ExprVal.Boolean)],
     returns: ExprVal.Boolean,
-    lastArgSpreads: true,
   }),
   if: defineFunc({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    impl(...args): any {
-      const [condition, result] = args;
+    impl(condition, result, _, elseResult) {
       if (condition === true) {
         return result;
       }
 
-      return args.length === 4 ? args[3] : null;
+      return elseResult === undefined ? null : elseResult;
     },
     validator: ({ rawArgs, ctx, path }) => {
       if (rawArgs.length === 2) {
@@ -209,7 +230,7 @@ export const ExprFunctions = {
       addError(ctx, path, 'Expected either 2 arguments (if) or 4 (if + else), got %s', `${rawArgs.length}`);
     },
     runNumArgsValidator: false,
-    args: [ExprVal.Boolean, ExprVal.Any, ExprVal.String, ExprVal.Any],
+    args: [required(ExprVal.Boolean), required(ExprVal.Any), optional(ExprVal.String), optional(ExprVal.Any)] as const,
     returns: ExprVal.Any,
   }),
   instanceContext: defineFunc({
@@ -227,23 +248,22 @@ export const ExprFunctions = {
 
       return (this.dataSources.instanceDataSources && this.dataSources.instanceDataSources[key]) || null;
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   frontendSettings: defineFunc({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    impl(key): any {
+    impl(key) {
       if (key === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Value cannot be null. (Parameter 'key')`);
       }
 
       return (this.dataSources.applicationSettings && this.dataSources.applicationSettings[key]) || null;
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Any,
   }),
   authContext: defineFunc({
-    impl(key): boolean | null {
+    impl(key) {
       const authContextKeys: { [key in keyof IAuthContext]: true } = {
         read: true,
         write: true,
@@ -260,12 +280,11 @@ export const ExprFunctions = {
       const authContext = buildAuthContext(this.dataSources.process?.currentTask);
       return Boolean(authContext?.[key]);
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   component: defineFunc({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    impl(id): any {
+    impl(id) {
       if (id === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Cannot lookup component null`);
       }
@@ -298,12 +317,11 @@ export const ExprFunctions = {
           : `Unable to find component with identifier ${id} in the current layout or it does not have a simpleBinding`,
       );
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Any,
   }),
   dataModel: defineFunc({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    impl(propertyPath, maybeDataType): any {
+    impl(propertyPath, maybeDataType) {
       if (propertyPath === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Cannot lookup dataModel null`);
       }
@@ -332,8 +350,7 @@ export const ExprFunctions = {
       // a LayoutPage (i.e., when we're resolving an expression directly on the layout definition).
       return pickSimpleValue(reference, this);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
-    minArguments: 1,
+    args: [required(ExprVal.String), optional(ExprVal.String)] as const,
     returns: ExprVal.Any,
     validator({ rawArgs, ctx, path }) {
       if (rawArgs.length > 1 && rawArgs[1] !== null && typeof rawArgs[1] !== 'string') {
@@ -342,7 +359,7 @@ export const ExprFunctions = {
     },
   }),
   countDataElements: defineFunc({
-    impl(dataType): number {
+    impl(dataType) {
       if (dataType === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Expected dataType argument to be a string`);
       }
@@ -358,21 +375,21 @@ export const ExprFunctions = {
 
       return length;
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Number,
   }),
   hasRole: defineFunc({
-    impl(roleName): boolean | null {
+    impl(roleName) {
       if (!this.dataSources.roles || !roleName) {
         return false;
       }
       return this.dataSources.roles.data?.map((role) => role.value).includes(roleName) ?? null;
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   externalApi: defineFunc({
-    impl(externalApiId, path): string | null {
+    impl(externalApiId, path) {
       if (externalApiId === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Expected an external API id`);
       }
@@ -393,12 +410,11 @@ export const ExprFunctions = {
 
       return String(res);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   displayValue: defineFunc({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    impl(id): any {
+    impl(id) {
       if (id === null) {
         throw new ExprRuntimeError(this.expr, this.path, `Cannot lookup component null`);
       }
@@ -434,25 +450,23 @@ export const ExprFunctions = {
         nodeDataSelector: this.dataSources.nodeDataSelector,
       });
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   formatDate: defineFunc({
-    impl(date, format: string | null | undefined) {
+    impl(date, format) {
       return date ? formatDateLocale(this.dataSources.currentLanguage, date, format ?? undefined) : null;
     },
-    minArguments: 1,
-    args: [ExprVal.Date, ExprVal.String] as const,
+    args: [required(ExprVal.Date), optional(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   compare: defineFunc({
-    impl(arg1, arg2, arg3, arg4: string | number | boolean | null | undefined) {
+    impl(arg1, arg2, arg3, arg4) {
       return arg2 === 'not'
         ? !compare(this, arg3 as CompareOperator, arg1, arg4, 0, 3)
         : compare(this, arg2 as CompareOperator, arg1, arg3, 0, 2);
     },
-    minArguments: 3,
-    args: [ExprVal.Any, ExprVal.Any, ExprVal.Any, ExprVal.Any] as const,
+    args: [required(ExprVal.Any), required(ExprVal.Any), required(ExprVal.Any), optional(ExprVal.Any)] as const,
     returns: ExprVal.Boolean,
     validator({ rawArgs, ctx, path }) {
       if (rawArgs.length === 4 && rawArgs[1] !== 'not') {
@@ -474,13 +488,12 @@ export const ExprFunctions = {
     },
   }),
   round: defineFunc({
-    impl(number, decimalPoints: number | null | undefined) {
+    impl(number, decimalPoints) {
       const realNumber = number === null ? 0 : number;
       const realDecimalPoints = decimalPoints === null || decimalPoints === undefined ? 0 : decimalPoints;
       return parseFloat(`${realNumber}`).toFixed(realDecimalPoints);
     },
-    args: [ExprVal.Number, ExprVal.Number] as const,
-    minArguments: 1,
+    args: [required(ExprVal.Number), optional(ExprVal.Number)] as const,
     returns: ExprVal.String,
   }),
   text: defineFunc({
@@ -492,7 +505,7 @@ export const ExprFunctions = {
       const node = this.node instanceof BaseLayoutNode ? this.node : undefined;
       return this.dataSources.langToolsSelector(node).langAsNonProcessedString(key);
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   linkToComponent: defineFunc({
@@ -528,7 +541,7 @@ export const ExprFunctions = {
       const newUrl = `${url}?${searchParams.toString()}`;
       return `<a href="${newUrl}" data-link-type="LinkToPotentialNode">${linkText}</a>`;
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   linkToPage: defineFunc({
@@ -552,7 +565,7 @@ export const ExprFunctions = {
       }
       return `<a href="${url}" data-link-type="LinkToPotentialPage">${linkText}</a>`;
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   language: defineFunc({
@@ -570,7 +583,7 @@ export const ExprFunctions = {
 
       return string.includes(stringToContain);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   notContains: defineFunc({
@@ -580,7 +593,7 @@ export const ExprFunctions = {
       }
       return !string.includes(stringToNotContain);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   endsWith: defineFunc({
@@ -590,7 +603,7 @@ export const ExprFunctions = {
       }
       return string.endsWith(stringToMatch);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   startsWith: defineFunc({
@@ -600,7 +613,7 @@ export const ExprFunctions = {
       }
       return string.startsWith(stringToMatch);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   stringReplace: defineFunc({
@@ -610,16 +623,16 @@ export const ExprFunctions = {
       }
       return string.replace(new RegExp(escapeStringRegexp(search), 'g'), replace);
     },
-    args: [ExprVal.String, ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   stringLength: defineFunc({
     impl: (string) => (string === null ? 0 : string.length),
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.Number,
   }),
   stringSlice: defineFunc({
-    impl(string, start, length: number | null | undefined) {
+    impl(string, start, length) {
       if (start === null) {
         throw new ExprRuntimeError(
           this.expr,
@@ -643,8 +656,7 @@ export const ExprFunctions = {
 
       return string.substring(start, start + length);
     },
-    minArguments: 2,
-    args: [ExprVal.String, ExprVal.Number, ExprVal.Number] as const,
+    args: [required(ExprVal.String), required(ExprVal.Number), optional(ExprVal.Number)] as const,
     returns: ExprVal.String,
   }),
   stringIndexOf: defineFunc({
@@ -656,7 +668,7 @@ export const ExprFunctions = {
       const idx = string.indexOf(search);
       return idx === -1 ? null : idx;
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Number,
   }),
   commaContains: defineFunc({
@@ -669,7 +681,7 @@ export const ExprFunctions = {
       const parsedToArray = commaSeparatedString.split(',').map((part) => part.trim());
       return parsedToArray.includes(stringToMatch);
     },
-    args: [ExprVal.String, ExprVal.String] as const,
+    args: [required(ExprVal.String), required(ExprVal.String)] as const,
     returns: ExprVal.Boolean,
   }),
   lowerCase: defineFunc({
@@ -679,7 +691,7 @@ export const ExprFunctions = {
       }
       return string.toLowerCase();
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   upperCase: defineFunc({
@@ -689,7 +701,7 @@ export const ExprFunctions = {
       }
       return string.toUpperCase();
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   upperCaseFirst: defineFunc({
@@ -699,7 +711,7 @@ export const ExprFunctions = {
       }
       return string.charAt(0).toUpperCase() + string.slice(1);
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   lowerCaseFirst: defineFunc({
@@ -709,18 +721,18 @@ export const ExprFunctions = {
       }
       return string.charAt(0).toLowerCase() + string.slice(1);
     },
-    args: [ExprVal.String] as const,
+    args: [required(ExprVal.String)] as const,
     returns: ExprVal.String,
   }),
   _experimentalSelectAndMap: defineFunc({
-    args: [ExprVal.String, ExprVal.String, ExprVal.String, ExprVal.String, ExprVal.Boolean] as const,
-    impl(
-      path,
-      propertyToSelect,
-      prepend: string | null | undefined,
-      append: string | null | undefined,
-      appendToLastElement = true,
-    ) {
+    args: [
+      required(ExprVal.String),
+      required(ExprVal.String),
+      optional(ExprVal.String),
+      optional(ExprVal.String),
+      optional(ExprVal.Boolean),
+    ] as const,
+    impl(path, propertyToSelect, prepend, append, appendToLastElement = true) {
       if (path === null || propertyToSelect == null) {
         throw new ExprRuntimeError(this.expr, this.path, `Cannot lookup dataModel null`);
       }
@@ -744,7 +756,6 @@ export const ExprFunctions = {
         })
         .join(' ');
     },
-    minArguments: 2,
     returns: ExprVal.String,
   }),
 };

@@ -108,11 +108,11 @@ export const ExprFunctionDefinitions = {
     returns: ExprVal.String,
   },
   and: {
-    args: args(rest(ExprVal.Boolean)),
+    args: args(required(ExprVal.Boolean), rest(ExprVal.Boolean)),
     returns: ExprVal.Boolean,
   },
   or: {
-    args: args(rest(ExprVal.Boolean)),
+    args: args(required(ExprVal.Boolean), rest(ExprVal.Boolean)),
     returns: ExprVal.Boolean,
   },
   if: {

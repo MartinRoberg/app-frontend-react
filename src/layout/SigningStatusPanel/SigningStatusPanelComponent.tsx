@@ -12,6 +12,7 @@ import { useBackendValidationQuery } from 'src/features/validation/backendValida
 import { signeeListQuery } from 'src/layout/SigneeList/api';
 import { AwaitingCurrentUserSignaturePanel } from 'src/layout/SigningStatusPanel/PanelAwaitingCurrentUserSignature';
 import { AwaitingOtherSignaturesPanel } from 'src/layout/SigningStatusPanel/PanelAwaitingOtherSignatures';
+import { PanelError } from 'src/layout/SigningStatusPanel/PanelError';
 import { NoActionRequiredPanel } from 'src/layout/SigningStatusPanel/PanelNoActionRequired';
 import { SubmitPanel } from 'src/layout/SigningStatusPanel/PanelSubmit';
 import classes from 'src/layout/SigningStatusPanel/SigningStatusPanel.module.css';
@@ -26,6 +27,8 @@ export function SigningStatusPanelComponent({ node }: PropsFromGenericComponent<
   const profile = useProfile();
   const currentUserPartyId = profile?.partyId;
   const currentUserStatus = getCurrentUserStatus(signeeList, currentUserPartyId);
+  const canWrite = useIsAuthorised()('write');
+  const { langAsString } = useLanguage();
 
   const { refetch: refetchBackendValidations, data: hasMissingSignatures } = useBackendValidationQuery(
     {
@@ -37,8 +40,6 @@ export function SigningStatusPanelComponent({ node }: PropsFromGenericComponent<
   useEffect(() => {
     refetchBackendValidations();
   }, [refetchBackendValidations, signeeList]);
-  const canWrite = useIsAuthorised()('write');
-  const { langAsString } = useLanguage();
 
   if (isLoading) {
     return (
@@ -51,6 +52,11 @@ export function SigningStatusPanelComponent({ node }: PropsFromGenericComponent<
         </div>
       </Panel>
     );
+  }
+
+  const hasDelegationError = signeeList?.some((signee) => !signee.delegationSuccessful);
+  if (hasDelegationError) {
+    return <PanelError node={node} />;
   }
 
   if (currentUserStatus === 'awaitingSignature') {

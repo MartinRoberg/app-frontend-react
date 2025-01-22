@@ -1,0 +1,11 @@
+{
+  "comment": "This tests our compliance to the date format from the JSON Schema Test Suite.",
+  "source": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/blob/main/tests/draft2020-12/optional/format/date.json",
+  "name": "Should parse and return a valid date string with 31 days in March",
+  "expression": [
+    "formatDate",
+    "2020-03-31",
+    "YYYY-MM-DDTHH:mm:ss.SSSSSSZ"
+  ],
+  "expects": "Unsupported: YYYY-03-Unsupported: DDTHH:00:00.Unsupported: SSSSSSZ"
+}

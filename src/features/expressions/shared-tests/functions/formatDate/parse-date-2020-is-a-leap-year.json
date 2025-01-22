@@ -1,0 +1,11 @@
+{
+  "comment": "This tests our compliance to the date format from the JSON Schema Test Suite.",
+  "source": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/blob/main/tests/draft2020-12/optional/format/date.json",
+  "name": "Should parse and return 2020 is a leap year",
+  "expression": [
+    "formatDate",
+    "2020-02-29",
+    "YYYY-MM-DDTHH:mm:ss.SSSSSSZ"
+  ],
+  "expects": "Unsupported: YYYY-02-Unsupported: DDTHH:00:00.Unsupported: SSSSSSZ"
+}

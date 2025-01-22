@@ -349,35 +349,52 @@ export const ExprTypes: {
  */
 const datePatterns = [
   /^(\d{4})$/,
-  /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})Z?$/,
-  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})Z?$/,
-  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})Z?$/,
+  /^(\d{4})-(\d{2})-(\d{2})T?$/i,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z?([+-]\d{2}:\d{2})?$/i,
 ];
 
 function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
   for (const regex of datePatterns) {
     const match = regex.exec(date);
     if (match && match.length >= 2) {
+      const result = new Date(date);
+      if (isNaN(result.getTime())) {
+        throw new ExprRuntimeError(
+          ctx.expr,
+          ctx.path,
+          `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
+        );
+      }
+
       const year = parseInt(match[1], 10);
       const month = match[2] ? parseInt(match[2], 10) - 1 : 0;
       const day = match[3] ? parseInt(match[3], 10) : 1;
       const hour = match[4] ? parseInt(match[4], 10) : 0;
       const minute = match[5] ? parseInt(match[5], 10) : 0;
       const second = match[6] ? parseInt(match[6], 10) : 0;
-      const ms = match[7] ? parseInt(match[7], 10) : 0;
-      const result = new Date(year, month, day, hour, minute, second, ms);
+
+      // Milliseconds only support 3 digits in JS, so we'll round it to 3 digits
+      const ms = match[7] !== undefined ? Math.floor(parseInt(`${match[7]}`.padEnd(6, '0'), 10) / 1000) : 0;
+
+      // Adjust the date to the correct timezone, if offset is given
+      const offset = match[8];
+      const offsets = offset?.match(/([+-])(\d{2}):(\d{2})/) ?? ['', '+', '0', '0'];
+      const addToHours = offsets[1] === '-' ? -offsets[2] : +offsets[2];
+      const addToMinutes = offsets[1] === '-' ? -offsets[3] : +offsets[3];
+      const adjusted = new Date(result.getTime() + (addToHours * 60 + addToMinutes) * 60 * 1000);
 
       // Make sure the result was valid. If your date is "2020-02-31", it will be converted to "2020-03-02" when
       // passed to the Date constructor. We want to catch these cases and throw an error instead.
       const valid =
-        result.getFullYear() == year &&
-        result.getMonth() == month &&
-        result.getDate() == day &&
-        result.getHours() == hour &&
-        result.getMinutes() == minute &&
-        result.getSeconds() == second &&
-        result.getMilliseconds() == ms;
+        adjusted.getFullYear() == year &&
+        adjusted.getMonth() == month &&
+        adjusted.getDate() == day &&
+        adjusted.getHours() == hour &&
+        adjusted.getMinutes() == minute &&
+        adjusted.getSeconds() == second &&
+        adjusted.getMilliseconds() == ms;
 
       if (valid) {
         return result;

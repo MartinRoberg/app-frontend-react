@@ -1,0 +1,11 @@
+{
+  "comment": "This tests our compliance to the date format from the JSON Schema Test Suite.",
+  "source": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/blob/main/tests/draft2020-12/optional/format/date.json",
+  "name": "Should parse and return a valid date string with 30 days in November",
+  "expression": [
+    "formatDate",
+    "2020-11-30",
+    "YYYY-MM-DDTHH:mm:ss.SSSSSSZ"
+  ],
+  "expects": "Unsupported: YYYY-11-Unsupported: DDTHH:00:00.Unsupported: SSSSSSZ"
+}

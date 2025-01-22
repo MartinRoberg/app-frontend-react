@@ -469,7 +469,15 @@ export const ExprFunctionImplementations: { [K in Names]: Implementation<K> } = 
     });
   },
   formatDate(date, format) {
-    return date ? formatDateLocale(this.dataSources.currentLanguage, date, format ?? undefined) : null;
+    if (date === null) {
+      return null;
+    }
+    const result = formatDateLocale(this.dataSources.currentLanguage, date, format ?? undefined);
+    if (result.includes('Unsupported: ')) {
+      throw new ExprRuntimeError(this.expr, this.path, `Unsupported date format token in '${format}'`);
+    }
+
+    return result;
   },
   round(number, decimalPoints) {
     const realNumber = number === null ? 0 : number;

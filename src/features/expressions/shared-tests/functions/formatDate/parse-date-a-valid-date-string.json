@@ -1,11 +1,11 @@
 {
   "comment": "This tests our compliance to the date format from the JSON Schema Test Suite.",
   "source": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/blob/main/tests/draft2020-12/optional/format/date.json",
-  "name": "Should parse and return a valid date string",
+  "name": "Compliance: a valid date string",
   "expression": [
     "formatDate",
     "1963-06-19",
-    "YYYY-MM-DDTHH:mm:ss.SSSSSSZ"
+    "G yyyy-MM-dd EEEE HH:mm:ss.SSS a"
   ],
-  "expects": "Unsupported: YYYY-06-Unsupported: DDTHH:00:00.Unsupported: SSSSSSZ"
+  "expects": "e.Kr. 1963-06-19 onsdag 00:00:00.000 a.m."
 }

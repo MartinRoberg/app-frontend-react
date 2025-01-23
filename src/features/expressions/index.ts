@@ -359,15 +359,6 @@ function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
   for (const regex of datePatterns) {
     const match = regex.exec(date);
     if (match && match.length >= 2) {
-      const result = new Date(date);
-      if (isNaN(result.getTime())) {
-        throw new ExprRuntimeError(
-          ctx.expr,
-          ctx.path,
-          `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
-        );
-      }
-
       const year = parseInt(match[1], 10);
       const month = match[2] ? parseInt(match[2], 10) - 1 : 0;
       const day = match[3] ? parseInt(match[3], 10) : 1;
@@ -378,23 +369,27 @@ function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
       // Milliseconds only support 3 digits in JS, so we'll round it to 3 digits
       const ms = match[7] !== undefined ? Math.floor(parseInt(`${match[7]}`.padEnd(6, '0'), 10) / 1000) : 0;
 
-      // Adjust the date to the correct timezone, if offset is given
-      const offset = match[8];
-      const offsets = offset?.match(/([+-])(\d{2}):(\d{2})/) ?? ['', '+', '0', '0'];
-      const addToHours = offsets[1] === '-' ? -offsets[2] : +offsets[2];
-      const addToMinutes = offsets[1] === '-' ? -offsets[3] : +offsets[3];
-      const adjusted = new Date(result.getTime() + (addToHours * 60 + addToMinutes) * 60 * 1000);
+      const result = new Date(year, month, day, hour, minute, second, ms);
 
       // Make sure the result was valid. If your date is "2020-02-31", it will be converted to "2020-03-02" when
       // passed to the Date constructor. We want to catch these cases and throw an error instead.
       const valid =
-        adjusted.getFullYear() == year &&
-        adjusted.getMonth() == month &&
-        adjusted.getDate() == day &&
-        adjusted.getHours() == hour &&
-        adjusted.getMinutes() == minute &&
-        adjusted.getSeconds() == second &&
-        adjusted.getMilliseconds() == ms;
+        result.getFullYear() == year &&
+        result.getMonth() == month &&
+        result.getDate() == day &&
+        result.getHours() == hour &&
+        result.getMinutes() == minute &&
+        result.getSeconds() == second &&
+        result.getMilliseconds() == ms;
+
+      // Adjust the date to the correct timezone, if offset is given
+      const offset = match[8];
+      if (valid && offset) {
+        const offsets = offset?.match(/([+-])(\d{2}):(\d{2})/) ?? ['', '+', '0', '0'];
+        const adjustHours = offsets[1] === '-' ? -offsets[2] : +offsets[2];
+        const adjustMinutes = offsets[1] === '-' ? -offsets[3] : +offsets[3];
+        return new Date(result.getTime() - (adjustHours * 60 + adjustMinutes) * 60 * 1000);
+      }
 
       if (valid) {
         return result;

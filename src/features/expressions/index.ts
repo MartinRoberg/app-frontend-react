@@ -327,7 +327,7 @@ export const ExprTypes: {
   },
   [ExprVal.Date]: {
     nullable: true,
-    accepts: [ExprVal.String, ExprVal.Number, ExprVal.Date],
+    accepts: [ExprVal.String, ExprVal.Number, ExprVal.Date, ExprVal.Any],
     impl(arg) {
       if (typeof arg === 'number') {
         return parseDate(this, String(arg)); // Might be just a 4-digit year
@@ -352,7 +352,7 @@ const datePatterns = [
   /^(\d{4})-(\d{2})-(\d{2})T?$/i,
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z?([+-]\d{2}:\d{2})?$/i,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d+)Z?([+-]\d{2}:\d{2})?$/i,
 ];
 
 function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
@@ -366,32 +366,30 @@ function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
       const minute = match[5] ? parseInt(match[5], 10) : 0;
       const second = match[6] ? parseInt(match[6], 10) : 0;
 
-      // Milliseconds only support 3 digits in JS, so we'll round it to 3 digits
-      const ms = match[7] !== undefined ? Math.floor(parseInt(`${match[7]}`.padEnd(6, '0'), 10) / 1000) : 0;
+      // Milliseconds only support 3 digits in JS
+      const ms = match[7] !== undefined ? Math.round(parseInt(match[7].substring(0, 6), 10) / 1000) : 0;
 
-      const result = new Date(year, month, day, hour, minute, second, ms);
+      const result = new Date();
+      result.setUTCFullYear(year, month, day);
+      result.setUTCHours(hour, minute, second, ms);
 
       // Make sure the result was valid. If your date is "2020-02-31", it will be converted to "2020-03-02" when
       // passed to the Date constructor. We want to catch these cases and throw an error instead.
       const valid =
-        result.getFullYear() == year &&
-        result.getMonth() == month &&
-        result.getDate() == day &&
-        result.getHours() == hour &&
-        result.getMinutes() == minute &&
-        result.getSeconds() == second &&
-        result.getMilliseconds() == ms;
-
-      // Adjust the date to the correct timezone, if offset is given
-      const offset = match[8];
-      if (valid && offset) {
-        const offsets = offset?.match(/([+-])(\d{2}):(\d{2})/) ?? ['', '+', '0', '0'];
-        const adjustHours = offsets[1] === '-' ? -offsets[2] : +offsets[2];
-        const adjustMinutes = offsets[1] === '-' ? -offsets[3] : +offsets[3];
-        return new Date(result.getTime() - (adjustHours * 60 + adjustMinutes) * 60 * 1000);
-      }
+        result.getUTCFullYear() == year &&
+        result.getUTCMonth() == month &&
+        result.getUTCDate() == day &&
+        result.getUTCHours() == hour &&
+        result.getUTCMinutes() == minute &&
+        result.getUTCSeconds() == second &&
+        result.getUTCMilliseconds() == ms;
 
       if (valid) {
+        // If there is an offset in the date format, that just means the date is in UTC (but the DateTime object
+        // is trying to tell us the local time zone in which the date was originally created). Internally, JS
+        // treats all dates as UTC, so we can just ignore the offset and return the date as-is. When, for example,
+        // the formatDate function is used, it will automatically convert the date to the local time zone according
+        // to the user's browser settings.
         return result;
       }
 

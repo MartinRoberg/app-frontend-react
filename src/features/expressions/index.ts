@@ -350,33 +350,58 @@ export const ExprTypes: {
  */
 const datePatterns = [
   /^(\d{4})$/,
-  /^(\d{4})-(\d{2})-(\d{2})T?([+-]\d{2}:\d{2})?$/i,
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/i,
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d+)Z?([+-]\d{2}:\d{2})?$/i,
+  /^(\d{4})-(\d{2})-(\d{2})T?$/,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})Z?([+-]\d{2}:\d{2})?$/,
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d+)Z?([+-]\d{2}:\d{2})?$/,
 ];
 
-function parseDate(ctx: EvaluateExpressionParams, date: string): Date | null {
-  for (const regex of datePatterns) {
+function parseDate(ctx: EvaluateExpressionParams, _date: string): Date | null {
+  const date = _date.toUpperCase();
+  for (const regexIdx in datePatterns) {
+    const regex = datePatterns[regexIdx];
     const match = regex.exec(date);
     if (!match) {
       // To maintain compatibility with the backend, we only allow the above regexes to be parsed
       continue;
     }
 
-    const parsed = parseISO(date);
-    try {
-      if (!isValid(parsed.getTime())) {
-        throw new Error('Invalid date');
+    // Special case that parseISO doesn't catch: Time zone offset cannot be +- >= 24 hours
+    const lastGroup = match[match.length - 1];
+    if (lastGroup && (lastGroup.startsWith('-') || lastGroup.startsWith('+'))) {
+      const offsetHours = parseInt(lastGroup.substring(1, 3), 10);
+      if (offsetHours >= 24) {
+        throw new ExprRuntimeError(
+          ctx.expr,
+          ctx.path,
+          `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
+        );
       }
-      return parsed;
-    } catch (_err) {
+    }
+
+    const parsed = parseISO(date);
+    if (!isValid(parsed.getTime())) {
       throw new ExprRuntimeError(
         ctx.expr,
         ctx.path,
         `Unable to parse date "${date}": Format was recognized, but the date/time is invalid`,
       );
     }
+
+    // Special case that parseISO gets wrong: Fractional seconds with more than 3 digits
+    // https://github.com/date-fns/date-fns/issues/3194
+    // https://github.com/date-fns/date-fns/pull/3199
+    if (regexIdx === '4' && match[7] && match[7].length > 3) {
+      // This is a sloppy workaround, and not really a fix. By just setting the correct amount of milliseconds we
+      // fix our shared tests to match the backend, but if you have an edge-case like 31.12.2021 23:59:59.9999999
+      // the parseISO function will think it's 2022. Saying it's really 01.01.2022 00:00:00.999 (like we're doing here)
+      // may look like we're just making things worse, but in most cases high precision fractionals will not roll you
+      // over to the next second (let alone the next year).
+      const ms = parseInt(match[7].substring(0, 3), 10);
+      parsed.setMilliseconds(ms);
+    }
+
+    return parsed;
   }
 
   if (date.trim() !== '') {

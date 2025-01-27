@@ -68,7 +68,7 @@ describe('expression schema tests', () => {
   const validate = ajv.compile(expressionSchema);
 
   it.each(functions)('$name should validate against generated function calls', ({ name, args }) => {
-    if (name === 'if' || name === 'compare') {
+    if (name === 'if') {
       // if is a special case, we'll skip it here
       return;
     }

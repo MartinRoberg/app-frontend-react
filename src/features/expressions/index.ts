@@ -331,11 +331,11 @@ export const ExprTypes: {
     accepts: [ExprVal.String, ExprVal.Number, ExprVal.Date, ExprVal.Any],
     impl(arg) {
       if (typeof arg === 'number') {
-        return parseDate(this, String(arg)); // Might be just a 4-digit year
+        return exprParseDate(this, String(arg)); // Might be just a 4-digit year
       }
 
       if (typeof arg === 'string') {
-        return arg ? parseDate(this, arg) : null;
+        return arg ? exprParseDate(this, arg) : null;
       }
 
       throw new UnexpectedType(this.expr, this.path, 'date', arg);
@@ -356,7 +356,7 @@ const datePatterns = [
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})\.(\d+)Z?([+-]\d{2}:\d{2})?$/,
 ];
 
-function parseDate(ctx: EvaluateExpressionParams, _date: string): Date | null {
+function exprParseDate(ctx: EvaluateExpressionParams, _date: string): Date | null {
   const date = _date.toUpperCase();
   for (const regexIdx in datePatterns) {
     const regex = datePatterns[regexIdx];
